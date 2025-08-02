@@ -7,7 +7,7 @@ import {
   Settings,
   Home,
   Plus,
-  Clock
+  Clock,
 } from "lucide-react";
 
 import {
@@ -25,14 +25,14 @@ import {
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: Home },
-  { title: "Schedule Leave", url: "/schedule", icon: Calendar },
-  { title: "New Request", url: "/request", icon: Plus },
-  { title: "Leave History", url: "/history", icon: Clock },
+  // { title: "Schedule Leave", url: "/schedule", icon: Calendar },
+  { title: "New Leave Request", url: "/request", icon: Plus },
+  { title: "Leave History & Reports", url: "/history", icon: Clock },
 ];
 
 const managementItems = [
   { title: "Employees", url: "/employees", icon: Users },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Analytics", url: "/reports", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
@@ -42,18 +42,24 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className={`${collapsed ? "w-14" : "w-64"} bg-gradient-to-b from-primary to-primary-hover border-r-0 shadow-elevation`}
+      className={`${
+        collapsed ? "w-14" : "w-64"
+      } bg-gradient-to-b from-primary to-primary-hover border-r-0 shadow-elevation`}
       collapsible="icon"
     >
       <div className="p-4">
-        <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+        <div
+          className={`flex items-center gap-3 ${
+            collapsed ? "justify-center" : ""
+          }`}
+        >
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
             <FileText className="w-5 h-5 text-primary" />
           </div>
           {!collapsed && (
-            <div className="text-white">
+            <div className="text-black">
               <h2 className="font-bold text-lg">LeaveManager</h2>
-              <p className="text-primary-foreground/80 text-xs">HR Management</p>
+              <p className="text-black-foreground/80 text-xs">HR Management</p>
             </div>
           )}
         </div>
@@ -69,19 +75,22 @@ export function AppSidebar() {
               {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="hover:bg-white/10">
-                    <NavLink 
-                      to={item.url} 
-                      end 
+                    <NavLink
+                      to={item.url}
+                      end
                       className={({ isActive }) => `
                         flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200
-                        ${isActive 
-                          ? "bg-white text-primary font-medium shadow-sm" 
-                          : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
+                        ${
+                          isActive
+                            ? "bg-white text-primary font-medium shadow-sm"
+                            : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
                         }
                       `}
                     >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && <span className="truncate">{item.title}</span>}
+                      {!collapsed && (
+                        <span className="truncate">{item.title}</span>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -99,18 +108,21 @@ export function AppSidebar() {
               {managementItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="hover:bg-white/10">
-                    <NavLink 
-                      to={item.url} 
+                    <NavLink
+                      to={item.url}
                       className={({ isActive }) => `
                         flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200
-                        ${isActive 
-                          ? "bg-white text-primary font-medium shadow-sm" 
-                          : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
+                        ${
+                          isActive
+                            ? "bg-white text-primary font-medium shadow-sm"
+                            : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
                         }
                       `}
                     >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && <span className="truncate">{item.title}</span>}
+                      {!collapsed && (
+                        <span className="truncate">{item.title}</span>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

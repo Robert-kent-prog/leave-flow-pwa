@@ -8,6 +8,10 @@ import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import LeaveSchedule from "./pages/LeaveSchedule";
 import NotFound from "./pages/NotFound";
+import LeaveRequest from "./pages/LeaveRequest";
+import LeaveHistory from "./pages/LeaveHistory";
+import NewEmployees from "./pages/NewEmployees";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
 
@@ -20,11 +24,11 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
-            <Route path="employees" element={<Employees />} />
+            <Route path="employees" element={<NewEmployees />} />
             <Route path="schedule" element={<LeaveSchedule />} />
-            <Route path="request" element={<div className="p-8 text-center text-muted-foreground">Leave Request page coming soon...</div>} />
-            <Route path="history" element={<div className="p-8 text-center text-muted-foreground">Leave History page coming soon...</div>} />
-            <Route path="reports" element={<div className="p-8 text-center text-muted-foreground">Reports page coming soon...</div>} />
+            <Route path="request" element={<LeaveRequest />} />
+            <Route path="history" element={<LeaveHistory />} />
+            <Route path="reports" element={<Reports />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
