@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,23 @@ const initialEmployees: Employee[] = [
     leaveBalance: 30,
   },
 ];
+
+const calculateWorkingDays = (startDate: Date, endDate: Date): number => {
+  let days = 0;
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (current <= end) {
+    const day = current.getDay();
+    // Skip weekends (Sunday = 0, Saturday = 6)
+    if (day !== 0 && day !== 6) {
+      days++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days;
+};
 
 export default function NewEmployees() {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
@@ -146,6 +163,51 @@ export default function NewEmployees() {
     });
     setIsDialogOpen(true);
   };
+
+  const updateLeaveBalances = () => {
+    const today = new Date();
+    setEmployees((prevEmployees) =>
+      prevEmployees.map((employee) => {
+        if (employee.status !== "On Leave") return employee;
+
+        // This is a placeholder - you'll need to track actual leave dates for each employee
+        // In a real app, you'd get these from your database/state management
+        const leaveStartDate = new Date(); // This should be the actual start date
+        const daysTaken = calculateWorkingDays(leaveStartDate, today);
+
+        return {
+          ...employee,
+          leaveBalance: Math.max(0, employee.leaveBalance - daysTaken),
+        };
+      })
+    );
+  };
+
+  useEffect(() => {
+    // Update immediately on mount
+    updateLeaveBalances();
+
+    // Then update daily (at midnight)
+    const now = new Date();
+    const midnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      0,
+      0,
+      0
+    );
+    const msUntilMidnight = midnight.getTime() - now.getTime();
+
+    const timer = setTimeout(() => {
+      updateLeaveBalances();
+      // Set interval to update every 24 hours after first midnight trigger
+      const dailyUpdate = setInterval(updateLeaveBalances, 24 * 60 * 60 * 1000);
+      return () => clearInterval(dailyUpdate);
+    }, msUntilMidnight);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleDelete = (id: string) => {
     setEmployees(employees.filter((emp) => emp.id !== id));
