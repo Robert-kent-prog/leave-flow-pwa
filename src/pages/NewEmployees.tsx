@@ -30,8 +30,9 @@ interface Employee {
   phone: string;
   status: "Active" | "On Leave" | "Inactive";
   leaveBalance: number;
+  currentLeaveStart?: Date;
+  currentLeaveEnd?: Date;
 }
-
 const initialEmployees: Employee[] = [
   {
     id: "1",
@@ -42,6 +43,8 @@ const initialEmployees: Employee[] = [
     phone: "+254 700 123 456",
     status: "Active",
     leaveBalance: 25,
+    currentLeaveStart: new Date("2025-10-01"),
+    currentLeaveEnd: new Date("2025-11-05"),
   },
   {
     id: "2",
@@ -50,8 +53,10 @@ const initialEmployees: Employee[] = [
     designation: "HR Manager",
     dutyStation: "HR Department",
     phone: "+254 700 234 567",
-    status: "On Leave",
-    leaveBalance: 18,
+    status: "Inactive",
+    leaveBalance: 0,
+    currentLeaveStart: new Date("2025-10-01"),
+    currentLeaveEnd: new Date("2025-11-05"),
   },
   {
     id: "3",
@@ -62,6 +67,20 @@ const initialEmployees: Employee[] = [
     phone: "+254 700 345 678",
     status: "Active",
     leaveBalance: 30,
+    currentLeaveStart: new Date("2025-10-01"),
+    currentLeaveEnd: new Date("2025-11-05"),
+  },
+  {
+    id: "3",
+    name: "Spoiler Kent",
+    pno: "EMP004",
+    designation: "Chief Accountant",
+    dutyStation: "Finance Department",
+    phone: "+254 700 355 678",
+    status: "On Leave",
+    leaveBalance: 26,
+    currentLeaveStart: new Date("2025-10-01"),
+    currentLeaveEnd: new Date("2025-11-05"),
   },
 ];
 
@@ -168,21 +187,34 @@ export default function NewEmployees() {
     const today = new Date();
     setEmployees((prevEmployees) =>
       prevEmployees.map((employee) => {
-        if (employee.status !== "On Leave") return employee;
+        if (employee.status !== "On Leave" || !employee.currentLeaveStart) {
+          return employee;
+        }
 
-        // This is a placeholder - you'll need to track actual leave dates for each employee
-        // In a real app, you'd get these from your database/state management
-        const leaveStartDate = new Date(); // This should be the actual start date
-        const daysTaken = calculateWorkingDays(leaveStartDate, today);
+        const endDate = employee.currentLeaveEnd || today;
+        const daysTaken = calculateWorkingDays(
+          new Date(employee.currentLeaveStart),
+          endDate > today ? today : endDate
+        );
 
-        return {
-          ...employee,
-          leaveBalance: Math.max(0, employee.leaveBalance - daysTaken),
-        };
+        // Only update if the employee is still on leave
+        if (today <= endDate) {
+          return {
+            ...employee,
+            leaveBalance: Math.max(0, (employee.leaveBalance || 0) - daysTaken),
+          };
+        } else {
+          // Return to active status when leave period ends
+          return {
+            ...employee,
+            status: "Active",
+            currentLeaveStart: undefined,
+            currentLeaveEnd: undefined,
+          };
+        }
       })
     );
   };
-
   useEffect(() => {
     // Update immediately on mount
     updateLeaveBalances();
@@ -209,6 +241,40 @@ export default function NewEmployees() {
     return () => clearTimeout(timer);
   }, []);
 
+  const EmployeeLeaveStatus = ({ employee }: { employee: Employee }) => {
+    // Handle inactive employees first
+    if (employee.status === "Inactive") {
+      return <span>Your Leave Ended</span>;
+    }
+
+    // Then handle active employees
+    if (employee.status !== "On Leave") {
+      return <span>{employee.leaveBalance} days remaining</span>;
+    }
+
+    // Only do leave calculations for employees "On Leave"
+    const today = new Date();
+    const endDate = employee.currentLeaveEnd || today;
+    const daysTaken = calculateWorkingDays(
+      new Date(employee.currentLeaveStart!),
+      endDate > today ? today : endDate
+    );
+    const totalDays = employee.currentLeaveEnd
+      ? calculateWorkingDays(
+          new Date(employee.currentLeaveStart!),
+          new Date(employee.currentLeaveEnd)
+        )
+      : "ongoing";
+
+    return (
+      <div className="text-sm">
+        <div>
+          On leave: {daysTaken}/{totalDays} days
+        </div>
+        <div>{employee.leaveBalance - daysTaken} days remaining</div>
+      </div>
+    );
+  };
   const handleDelete = (id: string) => {
     setEmployees(employees.filter((emp) => emp.id !== id));
     toast({
@@ -410,7 +476,9 @@ export default function NewEmployees() {
                     <td className="py-3 px-4">{employee.designation}</td>
                     <td className="py-3 px-4">{employee.dutyStation}</td>
                     <td className="py-3 px-4">{employee.phone}</td>
-                    <td className="py-3 px-4">{employee.leaveBalance} days</td>
+                    <td className="py-3 px-4">
+                      <EmployeeLeaveStatus employee={employee} />
+                    </td>
                     <td className="py-3 px-4">
                       {getStatusBadge(employee.status)}
                     </td>
