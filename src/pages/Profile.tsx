@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -22,6 +21,8 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Save, User, Mail, Building, Phone } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -42,21 +43,46 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      username: "HR Admin",
-      email: "hr@company.com",
-      department: "Human Resources",
-      phone: "+1 (555) 123-4567",
+      username: user?.username || "",
+      email: user?.email || "",
+      department: user?.department || "",
+      phone: user?.phone || "",
     },
   });
 
-  function onSubmit(data: ProfileFormValues) {
-    console.log(data);
-    setIsEditing(false);
-    // Here you would typically make an API call to update the profile
+  // Reset form when user data changes
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        username: user.username,
+        email: user.email,
+        department: user.department,
+        phone: user.phone,
+      });
+    }
+  }, [user, form]);
+
+  async function onSubmit(data: ProfileFormValues) {
+    setIsLoading(true);
+    try {
+      // Simulate API call - replace with actual profile update
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      console.log("Profile updated:", data);
+      setIsEditing(false);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -78,12 +104,15 @@ const Profile = () => {
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
             <Avatar className="h-32 w-32">
-              <AvatarImage src="/avatars/hr-admin.jpg" alt="HR Admin" />
+              <AvatarImage
+                src="/avatars/hr-admin.jpg"
+                alt={user?.username || "User"}
+              />
               <AvatarFallback className="text-3xl bg-primary text-primary-foreground">
-                HR
+                {user?.username?.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={isLoading}>
               <Camera className="mr-2 h-4 w-4" />
               Change Avatar
             </Button>
@@ -117,7 +146,7 @@ const Profile = () => {
                           <Input
                             placeholder="Your username"
                             {...field}
-                            disabled={!isEditing}
+                            disabled={!isEditing || isLoading}
                           />
                         </FormControl>
                         <FormMessage />
@@ -137,7 +166,7 @@ const Profile = () => {
                           <Input
                             placeholder="Your email"
                             {...field}
-                            disabled={!isEditing}
+                            disabled={!isEditing || isLoading}
                           />
                         </FormControl>
                         <FormMessage />
@@ -160,7 +189,7 @@ const Profile = () => {
                           <Input
                             placeholder="Your department"
                             {...field}
-                            disabled={!isEditing}
+                            disabled={!isEditing || isLoading}
                           />
                         </FormControl>
                         <FormMessage />
@@ -180,7 +209,7 @@ const Profile = () => {
                           <Input
                             placeholder="Your phone number"
                             {...field}
-                            disabled={!isEditing}
+                            disabled={!isEditing || isLoading}
                           />
                         </FormControl>
                         <FormMessage />
@@ -196,16 +225,30 @@ const Profile = () => {
                         type="button"
                         variant="outline"
                         onClick={() => setIsEditing(false)}
+                        disabled={isLoading}
                       >
                         Cancel
                       </Button>
-                      <Button type="submit">
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? (
+                          <>
+                            <Save className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                          </>
+                        )}
                       </Button>
                     </>
                   ) : (
-                    <Button type="button" onClick={() => setIsEditing(true)}>
+                    <Button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      disabled={isLoading}
+                    >
                       Edit Profile
                     </Button>
                   )}
