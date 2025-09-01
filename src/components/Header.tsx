@@ -10,11 +10,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Link } from "react-router-dom";
-import { useTheme } from "@/contexts/ThemeContext"; // Import the useTheme hook
+import { Link, useNavigate } from "react-router-dom";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext"; // Import the useAuth hook
 
 export function Header() {
-  const { theme, toggleTheme } = useTheme(); // Get theme and toggle function
+  const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth(); // Get user and logout function from auth context
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <header className="border-b bg-card shadow-sm">
       <div className="flex items-center justify-between px-6 py-4">
@@ -32,6 +41,7 @@ export function Header() {
               className="pl-10 w-64"
             />
           </div>
+
           {/* Theme Toggle Button */}
           <Button
             variant="ghost"
@@ -46,12 +56,14 @@ export function Header() {
             )}
           </Button>
 
+          {/* Notification Button with properly positioned badge */}
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full text-xs flex items-center justify-center text-white">
+            <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full text-xs flex items-center justify-center text-white">
               3
             </span>
           </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -60,7 +72,7 @@ export function Header() {
               >
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    HR
+                    {user?.username?.charAt(0) || "U"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -68,32 +80,35 @@ export function Header() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">HR Admin</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user?.username || "User"}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    hr@company.com
+                    {user?.email || "No email"}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/profile">
+                <Link to="/profile" className="flex items-center w-full">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/settings">
+                <Link to="/settings" className="flex items-center w-full">
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild>
-                <Link to="/logout">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log Out</span>
-                </Link>
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log Out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
