@@ -196,43 +196,6 @@ export default function LeaveHistory() {
     });
   };
 
-  const exportToCSV = () => {
-    const headers = [
-      "Employee",
-      "P/No",
-      "Leave Type",
-      "Start Date",
-      "End Date",
-      "Days",
-      "Status",
-      "Applied Date",
-      "Approved By",
-    ];
-    const csvData = filteredHistory.map((record) => [
-      record.employee,
-      record.pno,
-      record.leaveType,
-      record.startDate,
-      record.endDate,
-      record.days,
-      record.status,
-      record.appliedDate,
-      record.approvedBy || "N/A",
-    ]);
-
-    const csvContent = [headers, ...csvData]
-      .map((row) => row.map((field) => `"${field}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "leave-history.csv";
-    link.click();
-    window.URL.revokeObjectURL(url);
-  };
-
   const exportToPDF = () => {
     const doc = new jsPDF();
 
@@ -415,10 +378,6 @@ export default function LeaveHistory() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={exportToCSV} variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
           <Button onClick={exportToPDF} className="flex items-center gap-2">
             <Download className="h-4 w-4" />
             Export PDF
