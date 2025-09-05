@@ -1,14 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable prefer-const */
 import { useState } from "react";
-import {
-  Calendar,
-  Download,
-  Filter,
-  BarChart3,
-  PieChart,
-  Users,
-} from "lucide-react";
+import { Download, Filter, BarChart3, PieChart, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,9 +21,22 @@ import {
   ResponsiveContainer,
   PieChart as RechartsPieChart,
   Cell,
+  Pie,
 } from "recharts";
 import jsPDF from "jspdf";
+
+// Import autoTable using the side-effect import
 import "jspdf-autotable";
+
+// Extend the jsPDF type definition
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: {
+      finalY: number;
+    };
+  }
+}
 
 // Sample data for charts
 const monthlyData = [
@@ -85,43 +90,149 @@ export default function Reports() {
     );
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 55);
 
-    // Add department data table
-    const tableData = departmentData.map((dept) => [
-      dept.department,
-      dept.employees.toString(),
-      dept.onLeave.toString(),
-      dept.utilization,
-    ]);
+    // Table configuration
+    const startX = 20;
+    const startY = 70;
+    const rowHeight = 10;
+    const columnWidths = [50, 40, 40, 40]; // Widths for each column
+    const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
 
-    (doc as any).autoTable({
-      head: [["Department", "Total Employees", "On Leave", "Utilization"]],
-      body: tableData,
-      startY: 70,
-      theme: "striped",
-      headStyles: { fillColor: [59, 130, 246] },
+    // Draw table header
+    doc.setFillColor(59, 130, 246); // Blue background for header
+    doc.rect(startX, startY, tableWidth, rowHeight, "F");
+    doc.setTextColor(255, 255, 255); // White text for header
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+
+    let currentX = startX;
+    doc.text("Department", currentX + 5, startY + 7);
+    currentX += columnWidths[0];
+    doc.text("Employees", currentX + 5, startY + 7);
+    currentX += columnWidths[1];
+    doc.text("On Leave", currentX + 5, startY + 7);
+    currentX += columnWidths[2];
+    doc.text("Utilization", currentX + 5, startY + 7);
+
+    // Draw table rows
+    doc.setTextColor(0, 0, 0); // Black text for rows
+    doc.setFont(undefined, "normal");
+
+    let currentY = startY + rowHeight;
+
+    departmentData.forEach((dept, index) => {
+      // Alternate row colors for better readability
+      if (index % 2 === 0) {
+        doc.setFillColor(240, 240, 240); // Light gray for even rows
+        doc.rect(startX, currentY, tableWidth, rowHeight, "F");
+      }
+
+      // Draw cell borders
+      doc.setDrawColor(200, 200, 200); // Light gray border color
+      doc.setLineWidth(0.1);
+
+      let cellX = startX;
+
+      // Draw vertical lines
+      for (let i = 0; i <= columnWidths.length; i++) {
+        doc.line(cellX, currentY, cellX, currentY + rowHeight);
+        if (i < columnWidths.length) {
+          cellX += columnWidths[i];
+        }
+      }
+
+      // Draw horizontal line at the bottom of the row
+      doc.line(
+        startX,
+        currentY + rowHeight,
+        startX + tableWidth,
+        currentY + rowHeight
+      );
+
+      // Add cell content
+      cellX = startX;
+      doc.text(dept.department, cellX + 5, currentY + 7);
+      cellX += columnWidths[0];
+      doc.text(dept.employees.toString(), cellX + 5, currentY + 7);
+      cellX += columnWidths[1];
+      doc.text(dept.onLeave.toString(), cellX + 5, currentY + 7);
+      cellX += columnWidths[2];
+      doc.text(dept.utilization, cellX + 5, currentY + 7);
+
+      currentY += rowHeight;
     });
 
-    // Add leave type summary
-    let finalY = (doc as any).lastAutoTable.finalY + 20;
+    // Add leave type summary section
+    currentY += 15;
     doc.setFontSize(14);
     doc.setTextColor(40);
-    doc.text("Leave Type Summary", 20, finalY);
+    doc.text("Leave Type Summary", startX, currentY);
 
-    const leaveTypeTable = leaveTypeData.map((leave) => [
-      leave.name,
-      leave.value.toString(),
-      `${(
-        (leave.value / leaveTypeData.reduce((sum, l) => sum + l.value, 0)) *
-        100
-      ).toFixed(1)}%`,
-    ]);
+    currentY += 10;
+    const leaveTypeTableWidth = 60;
+    const leaveTypeColumnWidths = [60, 40, 40];
+    const leaveTypeTotalWidth = leaveTypeColumnWidths.reduce(
+      (sum, width) => sum + width,
+      0
+    );
 
-    (doc as any).autoTable({
-      head: [["Leave Type", "Total Days", "Percentage"]],
-      body: leaveTypeTable,
-      startY: finalY + 10,
-      theme: "striped",
-      headStyles: { fillColor: [59, 130, 246] },
+    // Leave type table header
+    doc.setFillColor(59, 130, 246);
+    doc.rect(startX, currentY, leaveTypeTotalWidth, rowHeight, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, "bold");
+
+    let leaveTypeX = startX;
+    doc.text("Leave Type", leaveTypeX + 5, currentY + 7);
+    leaveTypeX += leaveTypeColumnWidths[0];
+    doc.text("Total Days", leaveTypeX + 5, currentY + 7);
+    leaveTypeX += leaveTypeColumnWidths[1];
+    doc.text("Percentage", leaveTypeX + 5, currentY + 7);
+
+    // Leave type table rows
+    currentY += rowHeight;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, "normal");
+
+    leaveTypeData.forEach((leave, index) => {
+      if (index % 2 === 0) {
+        doc.setFillColor(240, 240, 240);
+        doc.rect(startX, currentY, leaveTypeTotalWidth, rowHeight, "F");
+      }
+
+      // Draw borders
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.1);
+
+      let cellX = startX;
+      for (let i = 0; i <= leaveTypeColumnWidths.length; i++) {
+        doc.line(cellX, currentY, cellX, currentY + rowHeight);
+        if (i < leaveTypeColumnWidths.length) {
+          cellX += leaveTypeColumnWidths[i];
+        }
+      }
+      doc.line(
+        startX,
+        currentY + rowHeight,
+        startX + leaveTypeTotalWidth,
+        currentY + rowHeight
+      );
+
+      // Add content
+      cellX = startX;
+      doc.text(leave.name, cellX + 5, currentY + 7);
+      cellX += leaveTypeColumnWidths[0];
+      doc.text(leave.value.toString(), cellX + 5, currentY + 7);
+      cellX += leaveTypeColumnWidths[1];
+      doc.text(
+        `${(
+          (leave.value / leaveTypeData.reduce((sum, l) => sum + l.value, 0)) *
+          100
+        ).toFixed(1)}%`,
+        cellX + 5,
+        currentY + 7
+      );
+
+      currentY += rowHeight;
     });
 
     doc.save(`leave-report-${selectedYear}-${selectedMonth}.pdf`);
@@ -251,17 +362,18 @@ export default function Reports() {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <RechartsPieChart>
-                <RechartsPieChart
+                <Pie
                   data={leaveTypeData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
                   outerRadius={80}
+                  dataKey="value"
                 >
                   {leaveTypeData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
-                </RechartsPieChart>
+                </Pie>
                 <Tooltip />
               </RechartsPieChart>
             </ResponsiveContainer>
