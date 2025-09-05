@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -36,6 +35,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import jsPDF from "jspdf";
 
 interface LeaveRecord {
   id: string;
@@ -233,6 +233,174 @@ export default function LeaveHistory() {
     window.URL.revokeObjectURL(url);
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+
+    // Add header
+    doc.setFontSize(20);
+    doc.setTextColor(40);
+    doc.text("Leave History Report", 20, 30);
+
+    // Add filters info
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(
+      `Year: ${selectedYear} | Month: ${
+        selectedMonth === "all" ? "All Months" : months[parseInt(selectedMonth)]
+      } | Status: ${
+        statusFilter === "all" ? "All Statuses" : statusFilter
+      } | Type: ${typeFilter === "all" ? "All Types" : typeFilter}`,
+      20,
+      45
+    );
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 55);
+    doc.text(`Total Records: ${filteredHistory.length}`, 20, 65);
+
+    // Table configuration
+    const startX = 20;
+    const startY = 80;
+    const rowHeight = 10;
+    const columnWidths = [30, 40, 30, 30, 30, 20, 25, 30]; // Widths for each column
+    const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
+
+    // Draw table header
+    doc.setFillColor(59, 130, 246); // Blue background for header
+    doc.rect(startX, startY, tableWidth, rowHeight, "F");
+    doc.setTextColor(255, 255, 255); // White text for header
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+
+    let currentX = startX;
+    const headers = [
+      "Employee",
+      "P/No",
+      "Leave Type",
+      "Start Date",
+      "End Date",
+      "Days",
+      "Status",
+      "Applied Date",
+    ];
+
+    headers.forEach((header, index) => {
+      doc.text(header, currentX + 2, startY + 7);
+      currentX += columnWidths[index];
+    });
+
+    // Draw table rows
+    doc.setTextColor(0, 0, 0); // Black text for rows
+    doc.setFont(undefined, "normal");
+    doc.setFontSize(9);
+
+    let currentY = startY + rowHeight;
+
+    filteredHistory.forEach((record, index) => {
+      // Alternate row colors for better readability
+      if (index % 2 === 0) {
+        doc.setFillColor(240, 240, 240); // Light gray for even rows
+        doc.rect(startX, currentY, tableWidth, rowHeight, "F");
+      }
+
+      // Draw cell borders
+      doc.setDrawColor(200, 200, 200); // Light gray border color
+      doc.setLineWidth(0.1);
+
+      let cellX = startX;
+
+      // Draw vertical lines
+      for (let i = 0; i <= columnWidths.length; i++) {
+        doc.line(cellX, currentY, cellX, currentY + rowHeight);
+        if (i < columnWidths.length) {
+          cellX += columnWidths[i];
+        }
+      }
+
+      // Draw horizontal line at the bottom of the row
+      doc.line(
+        startX,
+        currentY + rowHeight,
+        startX + tableWidth,
+        currentY + rowHeight
+      );
+
+      // Add cell content
+      cellX = startX;
+      const rowData = [
+        record.employee,
+        record.pno,
+        record.leaveType,
+        formatDate(record.startDate),
+        formatDate(record.endDate),
+        record.days.toString(),
+        record.status,
+        formatDate(record.appliedDate),
+      ];
+
+      rowData.forEach((data, dataIndex) => {
+        // Truncate long text to fit in cells
+        const maxLength = Math.floor(columnWidths[dataIndex] / 3);
+        const displayText =
+          data.length > maxLength
+            ? data.substring(0, maxLength - 3) + "..."
+            : data;
+
+        doc.text(displayText, cellX + 2, currentY + 7);
+        cellX += columnWidths[dataIndex];
+      });
+
+      currentY += rowHeight;
+
+      // Add new page if we're running out of space
+      if (currentY > 250 && index < filteredHistory.length - 1) {
+        doc.addPage();
+        currentY = 20;
+
+        // Redraw header on new page
+        doc.setFillColor(59, 130, 246);
+        doc.rect(startX, currentY, tableWidth, rowHeight, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, "bold");
+
+        let headerX = startX;
+        headers.forEach((header, headerIndex) => {
+          doc.text(header, headerX + 2, currentY + 7);
+          headerX += columnWidths[headerIndex];
+        });
+
+        currentY += rowHeight;
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, "normal");
+      }
+    });
+
+    // Add summary section
+    const summaryY = currentY + 15;
+    if (summaryY < 280) {
+      doc.setFontSize(12);
+      doc.setTextColor(40);
+      doc.text("Summary Statistics", startX, summaryY);
+
+      doc.setFontSize(10);
+      const approvedCount = filteredHistory.filter(
+        (r) => r.status === "Approved"
+      ).length;
+      const pendingCount = filteredHistory.filter(
+        (r) => r.status === "Pending"
+      ).length;
+      const rejectedCount = filteredHistory.filter(
+        (r) => r.status === "Rejected"
+      ).length;
+      const totalDays = filteredHistory.reduce((sum, r) => sum + r.days, 0);
+
+      doc.text(`Approved Leaves: ${approvedCount}`, startX, summaryY + 10);
+      doc.text(`Pending Leaves: ${pendingCount}`, startX, summaryY + 20);
+      doc.text(`Rejected Leaves: ${rejectedCount}`, startX, summaryY + 30);
+      doc.text(`Total Leave Days: ${totalDays}`, startX, summaryY + 40);
+    }
+
+    doc.save(`leave-history-${selectedYear}-${selectedMonth}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -246,10 +414,16 @@ export default function LeaveHistory() {
             View and manage historical leave records
           </p>
         </div>
-        <Button onClick={exportToCSV} variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={exportToCSV} variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button onClick={exportToPDF} className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Export PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
