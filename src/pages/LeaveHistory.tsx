@@ -198,38 +198,65 @@ export default function LeaveHistory() {
 
   const exportToPDF = () => {
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    let currentY = margin;
 
-    // Add header
-    doc.setFontSize(20);
-    doc.setTextColor(40);
-    doc.text("Leave History Report", 20, 30);
+    // Add header with background
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 0, pageWidth, 60, "F");
 
-    // Add filters info
+    // Company logo and title
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, "bold");
+    doc.text("LEAVE HISTORY REPORT", pageWidth / 2, 25, { align: "center" });
+
     doc.setFontSize(12);
-    doc.setTextColor(100);
+    doc.setTextColor(240, 240, 240);
+    doc.text(
+      `Generated on: ${new Date().toLocaleDateString()}`,
+      pageWidth / 2,
+      40,
+      { align: "center" }
+    );
+
+    // Add filters info in a box
+    currentY = 70;
+    doc.setDrawColor(200, 200, 200);
+    doc.setFillColor(250, 250, 250);
+    doc.roundedRect(margin, currentY, pageWidth - 2 * margin, 30, 3, 3, "FD");
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
     doc.text(
       `Year: ${selectedYear} | Month: ${
         selectedMonth === "all" ? "All Months" : months[parseInt(selectedMonth)]
       } | Status: ${
         statusFilter === "all" ? "All Statuses" : statusFilter
       } | Type: ${typeFilter === "all" ? "All Types" : typeFilter}`,
-      20,
-      45
+      margin + 5,
+      currentY + 10
     );
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 55);
-    doc.text(`Total Records: ${filteredHistory.length}`, 20, 65);
+
+    doc.text(
+      `Total Records: ${filteredHistory.length}`,
+      margin + 5,
+      currentY + 20
+    );
 
     // Table configuration
-    const startX = 20;
-    const startY = 80;
+    currentY += 40;
+    const startX = margin;
     const rowHeight = 10;
-    const columnWidths = [30, 40, 30, 30, 30, 20, 25, 30]; // Widths for each column
+    const columnWidths = [30, 25, 30, 30, 30, 15, 20, 30]; // Adjusted widths
     const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
 
     // Draw table header
-    doc.setFillColor(59, 130, 246); // Blue background for header
-    doc.rect(startX, startY, tableWidth, rowHeight, "F");
-    doc.setTextColor(255, 255, 255); // White text for header
+    doc.setFillColor(79, 70, 229); // Different shade for header
+    doc.roundedRect(startX, currentY, tableWidth, rowHeight, 1, 1, "F");
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
     doc.setFont(undefined, "bold");
 
@@ -246,48 +273,54 @@ export default function LeaveHistory() {
     ];
 
     headers.forEach((header, index) => {
-      doc.text(header, currentX + 2, startY + 7);
+      doc.text(header, currentX + 3, currentY + 7);
       currentX += columnWidths[index];
     });
 
     // Draw table rows
-    doc.setTextColor(0, 0, 0); // Black text for rows
-    doc.setFont(undefined, "normal");
-    doc.setFontSize(9);
-
-    let currentY = startY + rowHeight;
+    currentY += rowHeight;
 
     filteredHistory.forEach((record, index) => {
-      // Alternate row colors for better readability
+      // Check if we need a new page
+      if (currentY + rowHeight > pageHeight - margin) {
+        doc.addPage();
+        currentY = margin;
+
+        // Redraw header on new page
+        doc.setFillColor(79, 70, 229);
+        doc.roundedRect(startX, currentY, tableWidth, rowHeight, 1, 1, "F");
+        doc.setTextColor(255, 255, 255);
+
+        let headerX = startX;
+        headers.forEach((header, headerIndex) => {
+          doc.text(header, headerX + 3, currentY + 7);
+          headerX += columnWidths[headerIndex];
+        });
+
+        currentY += rowHeight;
+      }
+
+      // Alternate row colors
       if (index % 2 === 0) {
-        doc.setFillColor(240, 240, 240); // Light gray for even rows
+        doc.setFillColor(240, 240, 240);
         doc.rect(startX, currentY, tableWidth, rowHeight, "F");
       }
 
-      // Draw cell borders
-      doc.setDrawColor(200, 200, 200); // Light gray border color
-      doc.setLineWidth(0.1);
-
-      let cellX = startX;
-
-      // Draw vertical lines
-      for (let i = 0; i <= columnWidths.length; i++) {
-        doc.line(cellX, currentY, cellX, currentY + rowHeight);
-        if (i < columnWidths.length) {
-          cellX += columnWidths[i];
-        }
+      // Set text color based on status
+      doc.setTextColor(0, 0, 0);
+      if (record.status === "Approved") {
+        doc.setTextColor(0, 128, 0);
+      } else if (record.status === "Rejected") {
+        doc.setTextColor(220, 0, 0);
+      } else if (record.status === "Pending") {
+        doc.setTextColor(200, 120, 0);
       }
 
-      // Draw horizontal line at the bottom of the row
-      doc.line(
-        startX,
-        currentY + rowHeight,
-        startX + tableWidth,
-        currentY + rowHeight
-      );
+      doc.setFontSize(9);
+      doc.setFont(undefined, "normal");
 
       // Add cell content
-      cellX = startX;
+      let cellX = startX;
       const rowData = [
         record.employee,
         record.pno,
@@ -301,65 +334,166 @@ export default function LeaveHistory() {
 
       rowData.forEach((data, dataIndex) => {
         // Truncate long text to fit in cells
-        const maxLength = Math.floor(columnWidths[dataIndex] / 3);
-        const displayText =
-          data.length > maxLength
-            ? data.substring(0, maxLength - 3) + "..."
-            : data;
+        const maxWidth = columnWidths[dataIndex] - 4;
+        const displayText = doc.splitTextToSize(data, maxWidth);
 
         doc.text(displayText, cellX + 2, currentY + 7);
         cellX += columnWidths[dataIndex];
       });
 
+      // Draw row border
+      doc.setDrawColor(220, 220, 220);
+      doc.line(
+        startX,
+        currentY + rowHeight,
+        startX + tableWidth,
+        currentY + rowHeight
+      );
+
       currentY += rowHeight;
-
-      // Add new page if we're running out of space
-      if (currentY > 250 && index < filteredHistory.length - 1) {
-        doc.addPage();
-        currentY = 20;
-
-        // Redraw header on new page
-        doc.setFillColor(59, 130, 246);
-        doc.rect(startX, currentY, tableWidth, rowHeight, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.setFont(undefined, "bold");
-
-        let headerX = startX;
-        headers.forEach((header, headerIndex) => {
-          doc.text(header, headerX + 2, currentY + 7);
-          headerX += columnWidths[headerIndex];
-        });
-
-        currentY += rowHeight;
-        doc.setTextColor(0, 0, 0);
-        doc.setFont(undefined, "normal");
-      }
     });
 
     // Add summary section
-    const summaryY = currentY + 15;
-    if (summaryY < 280) {
-      doc.setFontSize(12);
-      doc.setTextColor(40);
-      doc.text("Summary Statistics", startX, summaryY);
-
-      doc.setFontSize(10);
-      const approvedCount = filteredHistory.filter(
-        (r) => r.status === "Approved"
-      ).length;
-      const pendingCount = filteredHistory.filter(
-        (r) => r.status === "Pending"
-      ).length;
-      const rejectedCount = filteredHistory.filter(
-        (r) => r.status === "Rejected"
-      ).length;
-      const totalDays = filteredHistory.reduce((sum, r) => sum + r.days, 0);
-
-      doc.text(`Approved Leaves: ${approvedCount}`, startX, summaryY + 10);
-      doc.text(`Pending Leaves: ${pendingCount}`, startX, summaryY + 20);
-      doc.text(`Rejected Leaves: ${rejectedCount}`, startX, summaryY + 30);
-      doc.text(`Total Leave Days: ${totalDays}`, startX, summaryY + 40);
+    currentY += 10;
+    if (currentY > pageHeight - 60) {
+      doc.addPage();
+      currentY = margin;
     }
+
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.5);
+    doc.line(margin, currentY, pageWidth - margin, currentY);
+    currentY += 10;
+
+    doc.setFontSize(14);
+    doc.setTextColor(59, 130, 246);
+    doc.setFont(undefined, "bold");
+    doc.text("SUMMARY STATISTICS", margin, currentY);
+    currentY += 10;
+
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+
+    const approvedCount = filteredHistory.filter(
+      (r) => r.status === "Approved"
+    ).length;
+    const pendingCount = filteredHistory.filter(
+      (r) => r.status === "Pending"
+    ).length;
+    const rejectedCount = filteredHistory.filter(
+      (r) => r.status === "Rejected"
+    ).length;
+    const totalDays = filteredHistory.reduce((sum, r) => sum + r.days, 0);
+
+    // Create summary boxes
+    const boxWidth = (pageWidth - 2 * margin - 15) / 4;
+    const boxHeight = 25;
+
+    // Approved leaves box
+    doc.setFillColor(235, 255, 235);
+    doc.roundedRect(margin, currentY, boxWidth, boxHeight, 3, 3, "F");
+    doc.setTextColor(0, 128, 0);
+    doc.setFont(undefined, "bold");
+    doc.text("APPROVED", margin + boxWidth / 2, currentY + 8, {
+      align: "center",
+    });
+    doc.setFontSize(12);
+    doc.text(approvedCount.toString(), margin + boxWidth / 2, currentY + 18, {
+      align: "center",
+    });
+
+    // Pending leaves box
+    doc.setFillColor(255, 248, 225);
+    doc.roundedRect(
+      margin + boxWidth + 5,
+      currentY,
+      boxWidth,
+      boxHeight,
+      3,
+      3,
+      "F"
+    );
+    doc.setTextColor(200, 120, 0);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text("PENDING", margin + boxWidth + 5 + boxWidth / 2, currentY + 8, {
+      align: "center",
+    });
+    doc.setFontSize(12);
+    doc.text(
+      pendingCount.toString(),
+      margin + boxWidth + 5 + boxWidth / 2,
+      currentY + 18,
+      { align: "center" }
+    );
+
+    // Rejected leaves box
+    doc.setFillColor(255, 235, 235);
+    doc.roundedRect(
+      margin + 2 * (boxWidth + 5),
+      currentY,
+      boxWidth,
+      boxHeight,
+      3,
+      3,
+      "F"
+    );
+    doc.setTextColor(220, 0, 0);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(
+      "REJECTED",
+      margin + 2 * (boxWidth + 5) + boxWidth / 2,
+      currentY + 8,
+      { align: "center" }
+    );
+    doc.setFontSize(12);
+    doc.text(
+      rejectedCount.toString(),
+      margin + 2 * (boxWidth + 5) + boxWidth / 2,
+      currentY + 18,
+      { align: "center" }
+    );
+
+    // Total days box
+    doc.setFillColor(235, 235, 255);
+    doc.roundedRect(
+      margin + 3 * (boxWidth + 5),
+      currentY,
+      boxWidth,
+      boxHeight,
+      3,
+      3,
+      "F"
+    );
+    doc.setTextColor(59, 130, 246);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(
+      "TOTAL DAYS",
+      margin + 3 * (boxWidth + 5) + boxWidth / 2,
+      currentY + 8,
+      { align: "center" }
+    );
+    doc.setFontSize(12);
+    doc.text(
+      totalDays.toString(),
+      margin + 3 * (boxWidth + 5) + boxWidth / 2,
+      currentY + 18,
+      { align: "center" }
+    );
+
+    // Footer
+    currentY += boxHeight + 15;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, currentY, pageWidth - margin, currentY);
+    currentY += 5;
+
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Confidential - For Internal Use Only", pageWidth / 2, currentY, {
+      align: "center",
+    });
 
     doc.save(`leave-history-${selectedYear}-${selectedMonth}.pdf`);
   };
