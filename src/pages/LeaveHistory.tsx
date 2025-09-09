@@ -441,8 +441,8 @@ export default function LeaveHistory() {
     const startX = margin;
     const rowHeight = 10;
 
-    // Adjusted column widths for landscape mode
-    const columnWidths = [35, 30, 30, 30, 30, 20, 25, 30];
+    // Adjusted column widths for landscape mode - added numbering column as first column
+    const columnWidths = [12, 35, 30, 30, 30, 30, 20, 25, 30]; // Added 12px for numbering column
     const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
 
     // Draw table header with borders
@@ -454,6 +454,7 @@ export default function LeaveHistory() {
 
     let currentX = startX;
     const headers = [
+      "#", // Numbering column header
       "Employee",
       "P/No",
       "Leave Type",
@@ -467,7 +468,7 @@ export default function LeaveHistory() {
     // Draw header cells with borders
     headers.forEach((header, index) => {
       doc.rect(currentX, currentY, columnWidths[index], rowHeight);
-      doc.text(header, currentX + 2, currentY + 7);
+      doc.text(header, currentX + (index === 0 ? 4 : 2), currentY + 7); // Center the # header
       currentX += columnWidths[index];
     });
 
@@ -492,7 +493,7 @@ export default function LeaveHistory() {
         let headerX = startX;
         headers.forEach((header, headerIndex) => {
           doc.rect(headerX, currentY, columnWidths[headerIndex], rowHeight);
-          doc.text(header, headerX + 2, currentY + 7);
+          doc.text(header, headerX + (headerIndex === 0 ? 4 : 2), currentY + 7);
           headerX += columnWidths[headerIndex];
         });
 
@@ -508,7 +509,9 @@ export default function LeaveHistory() {
 
       // Add cell content with borders
       let cellX = startX;
+      const rowNumber = index + 1; // Calculate row number (starting from 1)
       const rowData = [
+        rowNumber.toString(), // Add row number as first column
         record.employee,
         record.pno,
         record.leaveType,
@@ -528,17 +531,26 @@ export default function LeaveHistory() {
         let textSize = 9;
 
         // Specific adjustments for each column
-        if (dataIndex === 0 && data.length > 12) {
-          // Employee name
+        if (dataIndex === 1 && data.length > 12) {
+          // Employee name (now index 1)
           displayText =
             data.split(" ")[0] + " " + data.split(" ")[1].charAt(0) + ".";
-        } else if ((dataIndex === 2 || dataIndex === 6) && data.length > 8) {
+        } else if ((dataIndex === 3 || dataIndex === 7) && data.length > 8) {
           // Leave Type and Status
           textSize = 8;
         }
 
         doc.setFontSize(textSize);
-        doc.text(displayText, cellX + 2, currentY + 7);
+
+        // Center the number in the first column
+        if (dataIndex === 0) {
+          doc.text(displayText, cellX + columnWidths[0] / 2, currentY + 7, {
+            align: "center",
+          });
+        } else {
+          doc.text(displayText, cellX + 2, currentY + 7);
+        }
+
         cellX += columnWidths[dataIndex];
       });
 
