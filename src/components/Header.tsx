@@ -19,6 +19,8 @@ export function Header() {
   const { user, logout } = useAuth(); // Get user and logout function from auth context
   const navigate = useNavigate();
 
+  const unreadCount = 5; // Example unread notifications count
+
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -56,12 +58,13 @@ export function Header() {
             )}
           </Button>
 
-          {/* Notification Button with properly positioned badge */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full text-xs flex items-center justify-center text-white">
-              3
-            </span>
+          <Button variant="ghost" size="icon" className="relative" asChild>
+            <Link to="/notifications">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full text-xs flex items-center justify-center text-white">
+                {unreadCount} {/* You might want to fetch this from context */}
+              </span>
+            </Link>
           </Button>
 
           <DropdownMenu>
