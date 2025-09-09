@@ -231,6 +231,82 @@ const sampleHistory: LeaveRecord[] = [
     appliedDate: "2025-08-08",
     reason: "Short notice request",
   },
+  {
+    id: "7",
+    employee: "Michael Chen",
+    pno: "EMP003",
+    leaveType: "Paternity Leave",
+    startDate: "2025-10-15",
+    endDate: "2025-11-15",
+    days: 22,
+    status: "Approved",
+    appliedDate: "2025-09-20",
+    approvedBy: "HR Manager",
+    reason: "Birth of child",
+  },
+  {
+    id: "8",
+    employee: "Emma Johnson",
+    pno: "EMP004",
+    leaveType: "Annual Leave",
+    startDate: "2025-08-10",
+    endDate: "2025-08-15",
+    days: 4,
+    status: "Rejected",
+    appliedDate: "2025-08-08",
+    reason: "Short notice request",
+  },
+  {
+    id: "9",
+    employee: "John Doe",
+    pno: "EMP001",
+    leaveType: "Annual Leave",
+    startDate: "2025-12-15",
+    endDate: "2025-12-22",
+    days: 6,
+    status: "Approved",
+    appliedDate: "2025-12-01",
+    approvedBy: "HR Manager",
+    reason: "Family vacation",
+  },
+  {
+    id: "10",
+    employee: "Sarah Wilson",
+    pno: "EMP002",
+    leaveType: "Sick Leave",
+    startDate: "2025-11-20",
+    endDate: "2025-11-22",
+    days: 3,
+    status: "Approved",
+    appliedDate: "2025-11-19",
+    approvedBy: "Supervisor",
+    reason: "Medical treatment",
+  },
+  {
+    id: "11",
+    employee: "Michael Chen",
+    pno: "EMP003",
+    leaveType: "Paternity Leave",
+    startDate: "2025-10-15",
+    endDate: "2025-11-15",
+    days: 22,
+    status: "Approved",
+    appliedDate: "2025-09-20",
+    approvedBy: "HR Manager",
+    reason: "Birth of child",
+  },
+  {
+    id: "12",
+    employee: "Emma Johnson",
+    pno: "EMP004",
+    leaveType: "Annual Leave",
+    startDate: "2025-08-10",
+    endDate: "2025-08-15",
+    days: 4,
+    status: "Rejected",
+    appliedDate: "2025-08-08",
+    reason: "Short notice request",
+  },
 ];
 
 export default function LeaveHistory() {
@@ -299,16 +375,17 @@ export default function LeaveHistory() {
   };
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
+    // Use landscape orientation for better space
+    const doc = new jsPDF("landscape");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
+    const margin = 15;
     let currentY = margin;
 
     // Store page numbers for footer
     let pageCount = 1;
     const addFooter = () => {
-      const footerY = pageHeight - 15;
+      const footerY = pageHeight - 10;
       doc.setDrawColor(150, 150, 150);
       doc.line(margin, footerY, pageWidth - margin, footerY);
       doc.setFontSize(8);
@@ -326,10 +403,10 @@ export default function LeaveHistory() {
     };
 
     // Add header
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, "bold");
-    doc.text("Leave History Report", pageWidth / 2, 30, { align: "center" });
+    doc.text("Leave History Report", pageWidth / 2, 20, { align: "center" });
 
     // Add filters info
     doc.setFontSize(10);
@@ -341,29 +418,31 @@ export default function LeaveHistory() {
         statusFilter === "all" ? "All Statuses" : statusFilter
       } | Type: ${typeFilter === "all" ? "All Types" : typeFilter}`,
       pageWidth / 2,
-      45,
+      30,
       { align: "center" }
     );
 
     doc.text(
       `Generated on: ${new Date().toLocaleDateString()}`,
       pageWidth / 2,
-      55,
+      40,
       { align: "center" }
     );
-    doc.text(`Total Records: ${filteredHistory.length}`, pageWidth / 2, 65, {
+    doc.text(`Total Records: ${filteredHistory.length}`, pageWidth / 2, 50, {
       align: "center",
     });
 
     // Draw a line separator
     doc.setDrawColor(200, 200, 200);
-    doc.line(margin, 70, pageWidth - margin, 70);
+    doc.line(margin, 55, pageWidth - margin, 55);
 
-    // Table configuration
-    currentY = 80;
+    // Table configuration - with more space in landscape mode
+    currentY = 65;
     const startX = margin;
     const rowHeight = 10;
-    const columnWidths = [28, 20, 20, 23, 23, 14, 20, 25]; // Use your specified widths
+
+    // Adjusted column widths for landscape mode
+    const columnWidths = [35, 30, 30, 30, 30, 20, 25, 30];
     const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
 
     // Draw table header with borders
@@ -399,9 +478,9 @@ export default function LeaveHistory() {
 
     filteredHistory.forEach((record, index) => {
       // Check if we need a new page
-      if (currentY + rowHeight > pageHeight - 30) {
+      if (currentY + rowHeight > pageHeight - 20) {
         addFooter(); // Add footer to current page
-        doc.addPage();
+        doc.addPage("landscape");
         currentY = margin;
 
         // Redraw header on new page
@@ -444,23 +523,33 @@ export default function LeaveHistory() {
         // Draw cell border
         doc.rect(cellX, currentY, columnWidths[dataIndex], rowHeight);
 
-        // Truncate long text to fit in cells
-        const maxLength = Math.floor(columnWidths[dataIndex] / 3);
-        const displayText =
-          data.length > maxLength
-            ? data.substring(0, maxLength - 3) + "..."
-            : data;
+        // For longer text fields, use a smaller font or abbreviate
+        let displayText = data;
+        let textSize = 9;
 
+        // Specific adjustments for each column
+        if (dataIndex === 0 && data.length > 12) {
+          // Employee name
+          displayText =
+            data.split(" ")[0] + " " + data.split(" ")[1].charAt(0) + ".";
+        } else if ((dataIndex === 2 || dataIndex === 6) && data.length > 8) {
+          // Leave Type and Status
+          textSize = 8;
+        }
+
+        doc.setFontSize(textSize);
         doc.text(displayText, cellX + 2, currentY + 7);
         cellX += columnWidths[dataIndex];
       });
 
+      // Reset font size for next row
+      doc.setFontSize(9);
       currentY += rowHeight;
     });
 
     // Add summary section
     const summaryY = currentY + 15;
-    if (summaryY < pageHeight - 50) {
+    if (summaryY < pageHeight - 40) {
       doc.setDrawColor(200, 200, 200);
       doc.line(margin, summaryY - 5, pageWidth - margin, summaryY - 5);
 
@@ -486,6 +575,34 @@ export default function LeaveHistory() {
       doc.text(`Pending Leaves: ${pendingCount}`, margin, summaryY + 20);
       doc.text(`Rejected Leaves: ${rejectedCount}`, margin, summaryY + 30);
       doc.text(`Total Leave Days: ${totalDays}`, margin, summaryY + 40);
+    } else {
+      // If there's no space, add a new page for the summary
+      addFooter();
+      doc.addPage("landscape");
+      currentY = margin;
+
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont(undefined, "bold");
+      doc.text("Summary Statistics", margin, currentY);
+
+      doc.setFontSize(12);
+      doc.setFont(undefined, "normal");
+      const approvedCount = filteredHistory.filter(
+        (r) => r.status === "Approved"
+      ).length;
+      const pendingCount = filteredHistory.filter(
+        (r) => r.status === "Pending"
+      ).length;
+      const rejectedCount = filteredHistory.filter(
+        (r) => r.status === "Rejected"
+      ).length;
+      const totalDays = filteredHistory.reduce((sum, r) => sum + r.days, 0);
+
+      doc.text(`Approved Leaves: ${approvedCount}`, margin, currentY + 10);
+      doc.text(`Pending Leaves: ${pendingCount}`, margin, currentY + 20);
+      doc.text(`Rejected Leaves: ${rejectedCount}`, margin, currentY + 30);
+      doc.text(`Total Leave Days: ${totalDays}`, margin, currentY + 40);
     }
 
     // Add footer to the last page
