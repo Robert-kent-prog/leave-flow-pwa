@@ -23,20 +23,21 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSidebar } from "@/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"; // ✅ Import SidebarTrigger
 import { useState, useEffect } from "react";
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { open, setOpen } = useSidebar();
   const [isMobileSearchVisible, setIsMobileSearchVisible] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   const unreadCount = 5;
 
-  // Add scroll detection for subtle header styling on scroll
+  // ✅ NEW: Get sidebar state
+  const { state } = useSidebar(); // <-- This gives you "expanded" or "collapsed"
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -50,9 +51,10 @@ export function Header() {
     navigate("/login");
   };
 
-  const toggleSidebar = () => {
-    setOpen(!open);
-  };
+  // ✅ NO MORE toggleSidebar or setOpen — we don't control state manually!
+
+  // ❌ DELETE: const { open, setOpen } = useSidebar();
+  // ❌ DELETE: const toggleSidebar = () => { setOpen(!open); };
 
   return (
     <header
@@ -62,29 +64,26 @@ export function Header() {
     >
       <div className="flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4">
         <div className="flex items-center gap-2 md:gap-3">
-          {/* Sidebar toggle for mobile - shows different icon based on state */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="md:hidden h-8 w-8 sm:h-9 sm:w-9"
-            aria-label="Toggle menu"
-          >
-            {open ? (
-              <X className="h-4 w-4 sm:h-5 sm:w-5" />
-            ) : (
-              <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
-            )}
-          </Button>
+          {/* ✅ MOBILE SIDEBAR TOGGLE - FIXED */}
+          {/* ✅ CORRECT: Wrap Button inside SidebarTrigger */}
+          <SidebarTrigger className="md:hidden h-8 w-8 sm:h-9 sm:w-9 p-0">
+            <Button variant="ghost" size="icon" className="h-full w-full p-0">
+              {state === "expanded" ? (
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+              ) : (
+                <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+              )}
+            </Button>
+          </SidebarTrigger>
 
-          {/* Logo/Title - better responsive handling */}
+          {/* Logo/Title */}
           <h1 className="text-lg font-semibold text-foreground sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px] xs:max-w-[160px] sm:max-w-[220px] md:max-w-none">
             Employee Leave Management
           </h1>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
-          {/* Mobile search button - replaces search bar on small screens */}
+          {/* Mobile search button */}
           <Button
             variant="ghost"
             size="icon"
@@ -95,7 +94,7 @@ export function Header() {
             <Search className="h-4 w-4" />
           </Button>
 
-          {/* Search bar - hidden on mobile, shown on medium screens and up */}
+          {/* Search bar - hidden on mobile */}
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -143,7 +142,7 @@ export function Header() {
             )}
           </Button>
 
-          {/* Notification Button - smaller on mobile */}
+          {/* Notification Button */}
           <Button
             variant="ghost"
             size="icon"
