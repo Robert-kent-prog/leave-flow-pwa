@@ -8,6 +8,7 @@ import {
   Home,
   Plus,
   Clock,
+  X,
 } from "lucide-react";
 
 import {
@@ -22,10 +23,10 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useRef } from "react"; // ✅ Import useRef
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: Home },
-  // { title: "Schedule Leave", url: "/schedule", icon: Calendar },
   { title: "New Leave Request", url: "/request", icon: Plus },
   { title: "Leave History & Reports", url: "/history", icon: Clock },
 ];
@@ -36,9 +37,19 @@ const managementItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state } = useSidebar(); // ✅ Only get state, not setState
   const location = useLocation();
   const collapsed = state === "collapsed";
+
+  // ✅ Create a ref to the trigger button
+  const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // ✅ Function to close sidebar
+  const closeSidebar = () => {
+    if (sidebarTriggerRef.current) {
+      sidebarTriggerRef.current.click(); // ✅ Programmatically trigger the button
+    }
+  };
 
   return (
     <Sidebar
@@ -47,7 +58,7 @@ export function AppSidebar() {
       } bg-gradient-to-b from-primary to-primary-hover border-r-0 shadow-elevation`}
       collapsible="icon"
     >
-      <div className="p-4">
+      <div className="p-4 relative">
         <div
           className={`flex items-center gap-3 ${
             collapsed ? "justify-center" : ""
@@ -63,6 +74,17 @@ export function AppSidebar() {
             </div>
           )}
         </div>
+
+        {/* ✅ CLOSE BUTTON - ONLY ON MOBILE WHEN EXPANDED */}
+        {state === "expanded" && (
+          <button
+            onClick={closeSidebar}
+            className="absolute top-4 right-4 md:hidden z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background"
+            aria-label="Close sidebar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <SidebarContent className="px-2">
@@ -86,6 +108,11 @@ export function AppSidebar() {
                             : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
                         }
                       `}
+                      onClick={() => {
+                        if (state === "expanded") {
+                          closeSidebar(); // ✅ Closes sidebar on mobile
+                        }
+                      }}
                     >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
@@ -118,6 +145,11 @@ export function AppSidebar() {
                             : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
                         }
                       `}
+                      onClick={() => {
+                        if (state === "expanded") {
+                          closeSidebar(); // ✅ Closes sidebar on mobile
+                        }
+                      }}
                     >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
@@ -132,8 +164,12 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
+      {/* ✅ Attach ref to the trigger button — this is the key! */}
       <div className="p-2 mt-auto">
-        <SidebarTrigger className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20" />
+        <SidebarTrigger
+          ref={sidebarTriggerRef} // ✅ NOW WE CAN ACCESS IT PROGRAMMATICALLY
+          className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20"
+        />
       </div>
     </Sidebar>
   );
