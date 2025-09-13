@@ -7,6 +7,7 @@ import {
   Moon,
   Sun,
   Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,39 +23,110 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { SidebarTrigger } from "@/components/ui/sidebar"; // Import SidebarTrigger
+import { useSidebar } from "@/components/ui/sidebar";
+import { useState, useEffect } from "react";
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { open, setOpen } = useSidebar();
+  const [isMobileSearchVisible, setIsMobileSearchVisible] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
-  const unreadCount = 5; // Example unread notifications count
+  const unreadCount = 5;
+
+  // Add scroll detection for subtle header styling on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  const toggleSidebar = () => {
+    setOpen(!open);
+  };
+
   return (
-    <header className="border-b bg-card shadow-sm">
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-4">
-          {/* Add SidebarTrigger for mobile/desktop toggle */}
-          <SidebarTrigger className="md:hidden" />
-          <h1 className="text-2xl font-semibold text-foreground">
+    <header
+      className={`sticky top-0 z-50 border-b bg-card shadow-sm transition-all duration-300 ${
+        isScrolled ? "shadow-md" : "shadow-sm"
+      }`}
+    >
+      <div className="flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Sidebar toggle for mobile - shows different icon based on state */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="md:hidden h-8 w-8 sm:h-9 sm:w-9"
+            aria-label="Toggle menu"
+          >
+            {open ? (
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
+            ) : (
+              <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+            )}
+          </Button>
+
+          {/* Logo/Title - better responsive handling */}
+          <h1 className="text-lg font-semibold text-foreground sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px] xs:max-w-[160px] sm:max-w-[220px] md:max-w-none">
             Employee Leave Management
           </h1>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
+          {/* Mobile search button - replaces search bar on small screens */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMobileSearchVisible(!isMobileSearchVisible)}
+            className="md:hidden h-8 w-8 sm:h-9 sm:w-9"
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+
+          {/* Search bar - hidden on mobile, shown on medium screens and up */}
           <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search employees, requests..."
-              className="pl-10 w-64"
+              className="pl-10 w-40 lg:w-56 xl:w-64"
             />
           </div>
+
+          {/* Mobile search overlay */}
+          {isMobileSearchVisible && (
+            <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden animate-in fade-in">
+              <div className="flex items-center justify-center p-4 mt-20">
+                <div className="relative w-full max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Search employees, requests..."
+                    className="pl-10 w-full"
+                    autoFocus
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsMobileSearchVisible(false)}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Theme Toggle Button */}
           <Button
@@ -62,34 +134,44 @@ export function Header() {
             size="icon"
             onClick={toggleTheme}
             title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10"
           >
             {theme === "light" ? (
-              <Moon className="w-5 h-5" />
+              <Moon className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
             ) : (
-              <Sun className="w-5 h-5" />
+              <Sun className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
             )}
           </Button>
 
-          <Button variant="ghost" size="icon" className="relative" asChild>
+          {/* Notification Button - smaller on mobile */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10"
+            asChild
+          >
             <Link to="/notifications">
-              <Bell className="w-5 h-5" />
+              <Bell className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
               {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full text-xs flex items-center justify-center text-white">
-                  {unreadCount}
+                <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full sm:top-1 sm:right-1 sm:h-2.5 sm:w-2.5">
+                  <span className="sr-only">
+                    {unreadCount} unread notifications
+                  </span>
                 </span>
               )}
             </Link>
           </Button>
 
+          {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-10 w-10 rounded-full"
+                className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-full p-0"
               >
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.username?.charAt(0) || "U"}
+                <Avatar className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
+                    {user?.username?.charAt(0)?.toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -100,26 +182,31 @@ export function Header() {
                   <p className="text-sm font-medium leading-none">
                     {user?.username || "User"}
                   </p>
-                  <p className="text-xs leading-none text-muted-foreground">
+                  <p className="text-xs leading-none text-muted-foreground truncate">
                     {user?.email || "No email"}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/profile" className="flex items-center w-full">
+                <Link
+                  to="/profile"
+                  className="flex items-center w-full cursor-pointer"
+                >
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/settings" className="flex items-center w-full">
+                <Link
+                  to="/settings"
+                  className="flex items-center w-full cursor-pointer"
+                >
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-
               <DropdownMenuItem
                 onClick={handleLogout}
                 className="cursor-pointer"
