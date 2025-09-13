@@ -23,7 +23,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useRef } from "react"; // ✅ Import useRef
+import { useRef } from "react"; // Import useRef
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: Home },
@@ -37,17 +37,17 @@ const managementItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar(); // ✅ Only get state, not setState
+  const { state } = useSidebar(); // Only get state, not setState
   const location = useLocation();
   const collapsed = state === "collapsed";
 
-  // ✅ Create a ref to the trigger button
+  // Create a ref to the trigger button
   const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
 
-  // ✅ Function to close sidebar
+  // Function to close sidebar
   const closeSidebar = () => {
     if (sidebarTriggerRef.current) {
-      sidebarTriggerRef.current.click(); // ✅ Programmatically trigger the button
+      sidebarTriggerRef.current.click(); // Programmatically trigger the button
     }
   };
 
@@ -75,7 +75,7 @@ export function AppSidebar() {
           )}
         </div>
 
-        {/* ✅ CLOSE BUTTON - ONLY ON MOBILE WHEN EXPANDED */}
+        {/* CLOSE BUTTON - ONLY ON MOBILE WHEN EXPANDED */}
         {state === "expanded" && (
           <button
             onClick={closeSidebar}
@@ -110,7 +110,7 @@ export function AppSidebar() {
                       `}
                       onClick={() => {
                         if (state === "expanded") {
-                          closeSidebar(); // ✅ Closes sidebar on mobile
+                          closeSidebar(); // Closes sidebar on mobile
                         }
                       }}
                     >
@@ -147,7 +147,7 @@ export function AppSidebar() {
                       `}
                       onClick={() => {
                         if (state === "expanded") {
-                          closeSidebar(); // ✅ Closes sidebar on mobile
+                          closeSidebar(); // Closes sidebar on mobile
                         }
                       }}
                     >
@@ -164,10 +164,10 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* ✅ Attach ref to the trigger button — this is the key! */}
+      {/* Attach ref to the trigger button — this is the key! */}
       <div className="p-2 mt-auto">
         <SidebarTrigger
-          ref={sidebarTriggerRef} // ✅ NOW WE CAN ACCESS IT PROGRAMMATICALLY
+          ref={sidebarTriggerRef} // NOW WE CAN ACCESS IT PROGRAMMATICALLY
           className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20"
         />
       </div>
