@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -310,12 +311,6 @@ export default function NewEmployees() {
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          {/* <DialogTrigger asChild>
-            <Button onClick={() => resetForm()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Employee
-            </Button>
-          </DialogTrigger> */}
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
@@ -411,14 +406,14 @@ export default function NewEmployees() {
                   required
                 />
               </div>
-              <div className="flex justify-end space-x-2">
+              <DialogFooter>
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancel
                 </Button>
                 <Button type="submit">
                   {editingEmployee ? "Update" : "Add"} Employee
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
@@ -439,7 +434,7 @@ export default function NewEmployees() {
         </CardContent>
       </Card>
 
-      {/* Employee List */}
+      {/* Employee List - MOBILE CARD LAYOUT + DESKTOP TABLE */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -448,7 +443,74 @@ export default function NewEmployees() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* MOBILE CARD LAYOUT (only visible on mobile) */}
+          <div className="md:hidden">
+            {filteredEmployees.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  No employees found matching your criteria.
+                </p>
+              </div>
+            ) : (
+              filteredEmployees.map((employee) => (
+                <div
+                  key={employee.id}
+                  className="mb-4 p-4 border rounded-lg shadow bg-card"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-lg">{employee.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {employee.pno} • {employee.designation}
+                      </p>
+                    </div>
+                    <div>{getStatusBadge(employee.status)}</div>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Duty Station
+                      </p>
+                      <p className="text-sm">{employee.dutyStation}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Phone
+                      </p>
+                      <p className="text-sm">{employee.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Leave Balance
+                      </p>
+                      <p className="text-sm">{employee.leaveBalance} days</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-end space-x-2 pt-2 border-t border-border">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEdit(employee)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(employee.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* DESKTOP TABLE (only visible on desktop) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
@@ -469,39 +531,53 @@ export default function NewEmployees() {
                 </tr>
               </thead>
               <tbody>
-                {filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className="border-b hover:bg-muted/50">
-                    <td className="py-3 px-4 font-medium">{employee.name}</td>
-                    <td className="py-3 px-4">{employee.pno}</td>
-                    <td className="py-3 px-4">{employee.designation}</td>
-                    <td className="py-3 px-4">{employee.dutyStation}</td>
-                    <td className="py-3 px-4">{employee.phone}</td>
-                    <td className="py-3 px-4">
-                      <EmployeeLeaveStatus employee={employee} />
-                    </td>
-                    <td className="py-3 px-4">
-                      {getStatusBadge(employee.status)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(employee)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDelete(employee.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {filteredEmployees.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No employees found matching your criteria.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredEmployees.map((employee) => (
+                    <tr
+                      key={employee.id}
+                      className="border-b hover:bg-muted/50 transition-colors duration-150"
+                    >
+                      <td className="py-3 px-4 font-medium">{employee.name}</td>
+                      <td className="py-3 px-4">{employee.pno}</td>
+                      <td className="py-3 px-4">{employee.designation}</td>
+                      <td className="py-3 px-4">{employee.dutyStation}</td>
+                      <td className="py-3 px-4">{employee.phone}</td>
+                      <td className="py-3 px-4">
+                        <EmployeeLeaveStatus employee={employee} />
+                      </td>
+                      <td className="py-3 px-4">
+                        {getStatusBadge(employee.status)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(employee)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDelete(employee.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
