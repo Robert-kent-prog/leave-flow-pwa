@@ -251,10 +251,9 @@ const Settings = () => {
                 Enable
               </Button>
             </div>
-
-            <div className="pt-4">
+            {/* <div className="pt-4">
               <Button variant="outline">Change Password</Button>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 

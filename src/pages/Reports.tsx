@@ -256,7 +256,7 @@ export default function Reports() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Filters - MOBILE STACKED + DESKTOP GRID */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -265,12 +265,13 @@ export default function Reports() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* MOBILE: Vertical stacked layout */}
+          <div className="md:hidden space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Year</label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="2024">2024</SelectItem>
@@ -279,11 +280,12 @@ export default function Reports() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Month</label>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Months</SelectItem>
@@ -302,6 +304,7 @@ export default function Reports() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Department</label>
               <Select
@@ -309,7 +312,68 @@ export default function Reports() {
                 onValueChange={setSelectedDepartment}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  <SelectItem value="it">IT</SelectItem>
+                  <SelectItem value="hr">HR</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="operations">Operations</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* DESKTOP: Grid layout */}
+          <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Year</label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2024">2024</SelectItem>
+                  <SelectItem value="2023">2023</SelectItem>
+                  <SelectItem value="2022">2022</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Month</label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  <SelectItem value="january">January</SelectItem>
+                  <SelectItem value="february">February</SelectItem>
+                  <SelectItem value="march">March</SelectItem>
+                  <SelectItem value="april">April</SelectItem>
+                  <SelectItem value="may">May</SelectItem>
+                  <SelectItem value="june">June</SelectItem>
+                  <SelectItem value="july">July</SelectItem>
+                  <SelectItem value="august">August</SelectItem>
+                  <SelectItem value="september">September</SelectItem>
+                  <SelectItem value="october">October</SelectItem>
+                  <SelectItem value="november">November</SelectItem>
+                  <SelectItem value="december">December</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Department</label>
+              <Select
+                value={selectedDepartment}
+                onValueChange={setSelectedDepartment}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
@@ -325,7 +389,7 @@ export default function Reports() {
         </CardContent>
       </Card>
 
-      {/* Charts Row */}
+      {/* Charts Row - MOBILE STACKED + DESKTOP GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Leave Trends */}
         <Card>
@@ -336,18 +400,27 @@ export default function Reports() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="annual" fill="#3b82f6" name="Annual" />
-                <Bar dataKey="sick" fill="#ef4444" name="Sick" />
-                <Bar dataKey="maternity" fill="#10b981" name="Maternity" />
-                <Bar dataKey="paternity" fill="#f59e0b" name="Paternity" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="aspect-[4/3]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="month"
+                    fontSize={10}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                    interval={0}
+                  />
+                  <YAxis fontSize={10} />
+                  <Tooltip />
+                  <Bar dataKey="annual" fill="#3b82f6" name="Annual" />
+                  <Bar dataKey="sick" fill="#ef4444" name="Sick" />
+                  <Bar dataKey="maternity" fill="#10b981" name="Maternity" />
+                  <Bar dataKey="paternity" fill="#f59e0b" name="Paternity" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -360,32 +433,40 @@ export default function Reports() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsPieChart>
-                <Pie
-                  data={leaveTypeData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  dataKey="value"
-                >
-                  {leaveTypeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </RechartsPieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="aspect-[1/1] mb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={leaveTypeData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={60}
+                    dataKey="value"
+                    labelLine={false}
+                    label={({ name, percent }) =>
+                      `${name}: ${(percent * 100).toFixed(0)}%`
+                    }
+                  >
+                    {leaveTypeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
               {leaveTypeData.map((item, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <div
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: item.color }}
                   ></div>
-                  <span className="text-sm text-muted-foreground">
-                    {item.name}
+                  <span className="text-xs font-medium">{item.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({item.value})
                   </span>
                 </div>
               ))}
@@ -394,7 +475,7 @@ export default function Reports() {
         </Card>
       </div>
 
-      {/* Department Analysis */}
+      {/* Department Analysis - MOBILE CARD LAYOUT + DESKTOP TABLE */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -403,7 +484,67 @@ export default function Reports() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* MOBILE CARD LAYOUT (only visible on mobile) */}
+          <div className="md:hidden space-y-4">
+            {departmentData.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  No department data available.
+                </p>
+              </div>
+            ) : (
+              departmentData.map((dept, index) => (
+                <div
+                  key={index}
+                  className="p-4 border rounded-lg shadow bg-card"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-lg">{dept.department}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {dept.employees} total employees • {dept.onLeave} on
+                        leave
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        parseInt(dept.utilization) > 25
+                          ? "destructive"
+                          : parseInt(dept.utilization) > 20
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="text-xs"
+                    >
+                      {parseInt(dept.utilization) > 25
+                        ? "High"
+                        : parseInt(dept.utilization) > 20
+                        ? "Medium"
+                        : "Low"}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 pt-3 border-t border-border">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Utilization Rate
+                      </p>
+                      <p className="text-sm font-medium">{dept.utilization}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        On Leave
+                      </p>
+                      <p className="text-sm font-medium">{dept.onLeave}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* DESKTOP TABLE (only visible on desktop) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
@@ -423,31 +564,47 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {departmentData.map((dept, index) => (
-                  <tr key={index} className="border-b hover:bg-muted/50">
-                    <td className="py-3 px-4 font-medium">{dept.department}</td>
-                    <td className="py-3 px-4">{dept.employees}</td>
-                    <td className="py-3 px-4">{dept.onLeave}</td>
-                    <td className="py-3 px-4">{dept.utilization}</td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        variant={
-                          parseInt(dept.utilization) > 25
-                            ? "destructive"
-                            : parseInt(dept.utilization) > 20
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {parseInt(dept.utilization) > 25
-                          ? "High"
-                          : parseInt(dept.utilization) > 20
-                          ? "Medium"
-                          : "Low"}
-                      </Badge>
+                {departmentData.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No department data available.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  departmentData.map((dept, index) => (
+                    <tr
+                      key={index}
+                      className="border-b hover:bg-muted/50 transition-colors duration-150"
+                    >
+                      <td className="py-3 px-4 font-medium">
+                        {dept.department}
+                      </td>
+                      <td className="py-3 px-4">{dept.employees}</td>
+                      <td className="py-3 px-4">{dept.onLeave}</td>
+                      <td className="py-3 px-4">{dept.utilization}</td>
+                      <td className="py-3 px-4">
+                        <Badge
+                          variant={
+                            parseInt(dept.utilization) > 25
+                              ? "destructive"
+                              : parseInt(dept.utilization) > 20
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {parseInt(dept.utilization) > 25
+                            ? "High"
+                            : parseInt(dept.utilization) > 20
+                            ? "Medium"
+                            : "Low"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
