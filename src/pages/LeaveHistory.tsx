@@ -749,7 +749,7 @@ export default function LeaveHistory() {
         </CardContent>
       </Card>
 
-      {/* History Table */}
+      {/* Responsive Table - MOBILE CARD LAYOUT + DESKTOP TABLE */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -760,42 +760,55 @@ export default function LeaveHistory() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>P/No</TableHead>
-                <TableHead>Leave Type</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Applied</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredHistory.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell className="font-medium">
-                    {record.employee}
-                  </TableCell>
-                  <TableCell>{record.pno}</TableCell>
-                  <TableCell>{record.leaveType}</TableCell>
-                  <TableCell>
-                    {formatDate(record.startDate)} -{" "}
-                    {formatDate(record.endDate)}
-                  </TableCell>
-                  <TableCell>{record.days}</TableCell>
-                  <TableCell>{getStatusBadge(record.status)}</TableCell>
-                  <TableCell>{formatDate(record.appliedDate)}</TableCell>
-                  <TableCell>
+          {/* MOBILE CARD LAYOUT (only visible on mobile) */}
+          <div className="md:hidden">
+            {filteredHistory.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  No leave records found matching your criteria.
+                </p>
+              </div>
+            ) : (
+              filteredHistory.map((record) => (
+                <div
+                  key={record.id}
+                  className="mb-4 p-4 border rounded-lg shadow bg-card"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-lg">{record.employee}</h3>
+                      <span className="text-sm text-muted-foreground">
+                        {record.leaveType}
+                      </span>
+                    </div>
+                    <div>{getStatusBadge(record.status)}</div>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Period
+                      </p>
+                      <p className="text-sm">
+                        {formatDate(record.startDate)} -{" "}
+                        {formatDate(record.endDate)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Days
+                      </p>
+                      <p className="text-sm">{record.days}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex justify-between items-center">
+                    <div className="text-sm text-muted-foreground">
+                      Applied: {formatDate(record.appliedDate)}
+                    </div>
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedRecord(record)}
-                        >
+                        <Button size="sm" variant="outline">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>
@@ -803,104 +816,218 @@ export default function LeaveHistory() {
                         <DialogHeader>
                           <DialogTitle>Leave Request Details</DialogTitle>
                         </DialogHeader>
-                        {selectedRecord && (
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  Employee
-                                </p>
-                                <p className="text-sm">
-                                  {selectedRecord.employee}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  P/No
-                                </p>
-                                <p className="text-sm">{selectedRecord.pno}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  Leave Type
-                                </p>
-                                <p className="text-sm">
-                                  {selectedRecord.leaveType}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  Duration
-                                </p>
-                                <p className="text-sm">
-                                  {selectedRecord.days} days
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  Start Date
-                                </p>
-                                <p className="text-sm">
-                                  {formatDate(selectedRecord.startDate)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  End Date
-                                </p>
-                                <p className="text-sm">
-                                  {formatDate(selectedRecord.endDate)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  Applied Date
-                                </p>
-                                <p className="text-sm">
-                                  {formatDate(selectedRecord.appliedDate)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  Status
-                                </p>
-                                {getStatusBadge(selectedRecord.status)}
-                              </div>
-                            </div>
-                            {selectedRecord.approvedBy && (
-                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  Approved By
-                                </p>
-                                <p className="text-sm">
-                                  {selectedRecord.approvedBy}
-                                </p>
-                              </div>
-                            )}
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
                             <div>
                               <p className="text-sm font-medium text-muted-foreground">
-                                Reason
+                                Employee
                               </p>
-                              <p className="text-sm">{selectedRecord.reason}</p>
+                              <p className="text-sm">{record.employee}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                P/No
+                              </p>
+                              <p className="text-sm">{record.pno}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Leave Type
+                              </p>
+                              <p className="text-sm">{record.leaveType}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Duration
+                              </p>
+                              <p className="text-sm">{record.days} days</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Start Date
+                              </p>
+                              <p className="text-sm">
+                                {formatDate(record.startDate)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                End Date
+                              </p>
+                              <p className="text-sm">
+                                {formatDate(record.endDate)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Applied Date
+                              </p>
+                              <p className="text-sm">
+                                {formatDate(record.appliedDate)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Status
+                              </p>
+                              {getStatusBadge(record.status)}
                             </div>
                           </div>
-                        )}
+                          {record.approvedBy && (
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Approved By
+                              </p>
+                              <p className="text-sm">{record.approvedBy}</p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Reason
+                            </p>
+                            <p className="text-sm">{record.reason}</p>
+                          </div>
+                        </div>
                       </DialogContent>
                     </Dialog>
-                  </TableCell>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* DESKTOP TABLE (only visible on desktop) */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>P/No</TableHead>
+                  <TableHead>Leave Type</TableHead>
+                  <TableHead>Period</TableHead>
+                  <TableHead>Days</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Applied</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {filteredHistory.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                No leave records found matching your criteria.
-              </p>
-            </div>
-          )}
+              </TableHeader>
+              <TableBody>
+                {filteredHistory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      No leave records found matching your criteria.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredHistory.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium">
+                        {record.employee}
+                      </TableCell>
+                      <TableCell>{record.pno}</TableCell>
+                      <TableCell>{record.leaveType}</TableCell>
+                      <TableCell>
+                        {formatDate(record.startDate)} -{" "}
+                        {formatDate(record.endDate)}
+                      </TableCell>
+                      <TableCell>{record.days}</TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      <TableCell>{formatDate(record.appliedDate)}</TableCell>
+                      <TableCell>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Leave Request Details</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    Employee
+                                  </p>
+                                  <p className="text-sm">{record.employee}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    P/No
+                                  </p>
+                                  <p className="text-sm">{record.pno}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    Leave Type
+                                  </p>
+                                  <p className="text-sm">{record.leaveType}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    Duration
+                                  </p>
+                                  <p className="text-sm">{record.days} days</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    Start Date
+                                  </p>
+                                  <p className="text-sm">
+                                    {formatDate(record.startDate)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    End Date
+                                  </p>
+                                  <p className="text-sm">
+                                    {formatDate(record.endDate)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    Applied Date
+                                  </p>
+                                  <p className="text-sm">
+                                    {formatDate(record.appliedDate)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    Status
+                                  </p>
+                                  {getStatusBadge(record.status)}
+                                </div>
+                              </div>
+                              {record.approvedBy && (
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    Approved By
+                                  </p>
+                                  <p className="text-sm">{record.approvedBy}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground">
+                                  Reason
+                                </p>
+                                <p className="text-sm">{record.reason}</p>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
+
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="border-0 shadow-card bg-gradient-card">
