@@ -23,31 +23,30 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useRef } from "react"; // Import useRef
-
-const mainItems = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "New Leave Request", url: "/request", icon: Plus },
-  { title: "Leave History & Reports", url: "/history", icon: Clock },
-];
-
-const managementItems = [
-  { title: "Employees", url: "/employees", icon: Users },
-  { title: "Analytics", url: "/reports", icon: BarChart3 },
-];
+import { useRef } from "react";
+import { useMobile } from "@/hooks/useMobile";
 
 export function AppSidebar() {
-  const { state } = useSidebar(); // Only get state, not setState
+  const mainItems = [
+    { title: "Dashboard", url: "/", icon: Home },
+    { title: "New Leave Request", url: "/request", icon: Plus },
+    { title: "Leave History & Reports", url: "/history", icon: Clock },
+  ];
+
+  const managementItems = [
+    { title: "Employees", url: "/employees", icon: Users },
+    { title: "Analytics", url: "/reports", icon: BarChart3 },
+  ];
+
+  const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";
-
-  // Create a ref to the trigger button
+  const isMobile = useMobile();
   const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
 
-  // Function to close sidebar
   const closeSidebar = () => {
     if (sidebarTriggerRef.current) {
-      sidebarTriggerRef.current.click(); // Programmatically trigger the button
+      sidebarTriggerRef.current.click();
     }
   };
 
@@ -64,18 +63,17 @@ export function AppSidebar() {
             collapsed ? "justify-center" : ""
           }`}
         >
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-gray-800">
             <FileText className="w-5 h-5 text-primary" />
           </div>
           {!collapsed && (
-            <div className="text-black">
+            <div className="text-black dark:text-white">
               <h2 className="font-bold text-lg">LeaveManager</h2>
-              <p className="text-black-foreground/80 text-xs">HR Management</p>
+              <p className="text-gray-500 text-xs">HR Management</p>
             </div>
           )}
         </div>
 
-        {/* CLOSE BUTTON - ONLY ON MOBILE WHEN EXPANDED */}
         {state === "expanded" && (
           <button
             onClick={closeSidebar}
@@ -100,23 +98,25 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className={({ isActive }) => `
-                        flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200
-                        ${
+                      className={({ isActive }) =>
+                        [
+                          "flex items-center rounded-lg transition-all duration-200",
                           isActive
-                            ? "bg-white text-primary font-medium shadow-sm"
-                            : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
-                        }
-                      `}
+                            ? "bg-white text-blue-600 font-medium shadow-sm" // Blue text on white
+                            : "text-wrimary-foreground hover:bg-white/10 hover:text-primary", // ✅ FIXED
+                        ].join(" ")
+                      }
                       onClick={() => {
-                        if (state === "expanded") {
-                          closeSidebar(); // Closes sidebar on mobile
+                        if (isMobile && state === "expanded") {
+                          closeSidebar();
                         }
                       }}
                     >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
-                        <span className="truncate">{item.title}</span>
+                        <span className="truncate text-sm leading-none">
+                          {item.title}
+                        </span>
                       )}
                     </NavLink>
                   </SidebarMenuButton>
@@ -137,23 +137,25 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild className="hover:bg-white/10">
                     <NavLink
                       to={item.url}
-                      className={({ isActive }) => `
-                        flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200
-                        ${
+                      className={({ isActive }) =>
+                        [
+                          "flex items-center rounded-lg transition-all duration-200",
                           isActive
-                            ? "bg-white text-primary font-medium shadow-sm"
-                            : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
-                        }
-                      `}
+                            ? "bg-white text-blue-600 font-medium shadow-sm" // Blue text on white
+                            : "text-white hover:bg-white/10 hover:text-blue-500", // White text on blue background
+                        ].join(" ")
+                      }
                       onClick={() => {
-                        if (state === "expanded") {
-                          closeSidebar(); // Closes sidebar on mobile
+                        if (isMobile && state === "expanded") {
+                          closeSidebar();
                         }
                       }}
                     >
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && (
-                        <span className="truncate">{item.title}</span>
+                        <span className="truncate text-sm leading-none">
+                          {item.title}
+                        </span>
                       )}
                     </NavLink>
                   </SidebarMenuButton>
@@ -164,10 +166,9 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Attach ref to the trigger button — this is the key! */}
       <div className="p-2 mt-auto">
         <SidebarTrigger
-          ref={sidebarTriggerRef} // NOW WE CAN ACCESS IT PROGRAMMATICALLY
+          ref={sidebarTriggerRef}
           className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20"
         />
       </div>
