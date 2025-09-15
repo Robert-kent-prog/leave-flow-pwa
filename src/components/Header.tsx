@@ -117,13 +117,14 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0" // Prevent stretching
+            className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0"
             asChild
           >
             <Link to="/notifications">
               <Bell className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full sm:top-1 sm:right-1 sm:h-2.5 sm:w-2.5">
+                <span className="absolute -top-1 -right-1 bg-destructive text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center sm:h-5 sm:w-5 sm:text-xs">
+                  {unreadCount > 9 ? "9+" : unreadCount}
                   <span className="sr-only">
                     {unreadCount} unread notifications
                   </span>
