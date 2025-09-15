@@ -214,79 +214,96 @@ const NotificationPage = () => {
         {/* Notifications List */}
         <div className="lg:col-span-2 space-y-4">
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle>Your Notifications</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+            <CardHeader className="pb-3 px-3 sm:px-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <CardTitle className="text-lg sm:text-xl">
+                  Your Notifications
+                </CardTitle>
+                <div className="flex flex-wrap items-center gap-2 justify-end">
+                  <Badge
+                    variant="outline"
+                    className="bg-blue-50 text-blue-700 px-2 py-1 text-xs sm:text-sm"
+                  >
                     {unreadCount} unread
                   </Badge>
-                  <Badge variant="outline" className="bg-red-50 text-red-700">
+                  <Badge
+                    variant="outline"
+                    className="bg-red-50 text-red-700 px-2 py-1 text-xs sm:text-sm"
+                  >
                     {highPriorityCount} important
                   </Badge>
                 </div>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm mt-1">
                 Recent notifications from your leave management system
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6 pb-6">
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
                 className="w-full"
               >
-                <TabsList className="grid grid-cols-3 mb-4">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="unread">Unread</TabsTrigger>
-                  <TabsTrigger value="important">Important</TabsTrigger>
+                <TabsList className="grid grid-cols-3 mb-4 h-10 sm:h-12">
+                  <TabsTrigger value="all" className="text-xs sm:text-sm">
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger value="unread" className="text-xs sm:text-sm">
+                    Unread
+                  </TabsTrigger>
+                  <TabsTrigger value="important" className="text-xs sm:text-sm">
+                    Important
+                  </TabsTrigger>
                 </TabsList>
 
-                <ScrollArea className="h-[500px]">
+                {/* Dynamically sized scroll area — max 70vh on mobile, 500px on desktop */}
+                <ScrollArea className="h-[40vh] sm:h-[50vh] md:h-[500px]">
                   {filteredNotifications.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No notifications found</p>
+                    <div className="text-center py-8 sm:py-12 text-muted-foreground px-2">
+                      <Bell className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                      <p className="text-sm sm:text-base font-medium">
+                        No notifications found
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3 sm:space-y-4 pr-1">
                       {filteredNotifications.map((notification) => (
                         <div
                           key={notification.id}
-                          className={`p-4 rounded-lg border transition-all hover:shadow-sm ${
+                          className={`p-3 sm:p-4 rounded-lg border transition-all duration-200 hover:shadow-sm ${
                             !notification.read
                               ? "bg-blue-50 border-blue-200"
-                              : "bg-white"
+                              : "bg-white border-border"
                           }`}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5">
+                          <div className="flex items-start gap-3 sm:gap-4">
+                            <div className="mt-1 flex-shrink-0">
                               {getNotificationIcon(notification.type)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <h3 className="font-semibold text-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-1">
+                                <h3 className="font-semibold text-sm sm:text-base leading-tight">
                                   {notification.title}
                                 </h3>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
                                   {getPriorityBadge(notification.priority)}
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                                     {notification.timestamp}
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-sm text-muted-foreground mb-2">
+                              <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-2 leading-relaxed">
                                 {notification.message}
                               </p>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 {!notification.read && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => markAsRead(notification.id)}
-                                    className="h-7 text-xs"
+                                    className="h-8 px-2 text-xs sm:text-sm font-medium"
                                   >
-                                    <Check className="mr-1 h-3 w-3" />
+                                    <Check className="mr-1.5 h-3.5 w-3.5" />
                                     Mark as read
                                   </Button>
                                 )}
@@ -296,9 +313,9 @@ const NotificationPage = () => {
                                   onClick={() =>
                                     deleteNotification(notification.id)
                                   }
-                                  className="h-7 text-xs text-red-600 hover:text-red-700"
+                                  className="h-8 px-2 text-xs sm:text-sm text-red-600 hover:text-red-700 font-medium"
                                 >
-                                  <Trash2 className="mr-1 h-3 w-3" />
+                                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                                   Delete
                                 </Button>
                               </div>
