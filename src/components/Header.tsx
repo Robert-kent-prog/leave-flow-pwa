@@ -57,9 +57,9 @@ export function Header() {
         isScrolled ? "shadow-md" : "shadow-sm"
       }`}
     >
-      <div className="flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4 min-h-[60px] sm:min-h-[64px]">
         {/* Left side: Sidebar toggle + Logo */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 md:gap-3 min-w-0">
           {/* Mobile sidebar toggle */}
           <SidebarTrigger className="md:hidden h-8 w-8 sm:h-9 sm:w-9 p-0">
             <Button variant="ghost" size="icon" className="h-full w-full p-0">
@@ -71,8 +71,8 @@ export function Header() {
             </Button>
           </SidebarTrigger>
 
-          {/* Logo — ellipses if too long */}
-          <h1 className="text-lg font-semibold text-foreground sm:text-xl md:text-2xl whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px] xs:max-w-[160px] sm:max-w-[220px] md:max-w-none flex-shrink-0">
+          {/* Logo — wraps naturally on small screens */}
+          <h1 className="text-base sm:text-lg font-semibold text-foreground md:text-xl lg:text-2xl leading-tight break-words text-left">
             Employee Leave Management
           </h1>
         </div>
