@@ -57,11 +57,11 @@ export function Header() {
         isScrolled ? "shadow-md" : "shadow-sm"
       }`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4 min-h-[60px] sm:min-h-[64px]">
+      <div className="flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4">
         {/* Left side: Sidebar toggle + Logo */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 md:gap-3 min-w-0">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           {/* Mobile sidebar toggle */}
-          <SidebarTrigger className="md:hidden h-8 w-8 sm:h-9 sm:w-9 p-0">
+          <SidebarTrigger className="md:hidden h-8 w-8 sm:h-9 sm:w-9 p-0 flex-shrink-0">
             <Button variant="ghost" size="icon" className="h-full w-full p-0">
               {state === "expanded" ? (
                 <X className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -71,28 +71,26 @@ export function Header() {
             </Button>
           </SidebarTrigger>
 
-          {/* Logo — wraps naturally on small screens */}
-          <h1 className="text-base sm:text-lg font-semibold text-foreground md:text-xl lg:text-2xl leading-tight break-words text-left">
+          {/* Logo - Now wraps on smaller screens */}
+          <h1 className="text-lg font-semibold text-foreground sm:text-xl md:text-2xl whitespace-normal break-words min-w-0 max-w-full">
             Employee Leave Management
           </h1>
         </div>
 
         {/* Right side: All actions — SEARCH, THEME, NOTIFICATIONS, USER */}
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-1 justify-end min-w-0">
-          {" "}
-          {/* Key fix! */}
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0 ml-2">
           {/* Mobile search button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsMobileSearchVisible(!isMobileSearchVisible)}
-            className="md:hidden h-8 w-8 sm:h-9 sm:w-9"
+            className="md:hidden h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0"
             aria-label="Search"
           >
             <Search className="h-4 w-4" />
           </Button>
           {/* Search bar - hidden on mobile */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden md:block flex-shrink-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search employees, requests..."
@@ -105,7 +103,7 @@ export function Header() {
             size="icon"
             onClick={toggleTheme}
             title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0" // Prevent stretching
+            className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0"
           >
             {theme === "light" ? (
               <Moon className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
@@ -132,12 +130,12 @@ export function Header() {
               )}
             </Link>
           </Button>
-          {/* USER DROPDOWN — THIS WAS GETTING PUSHED OFF! */}
+          {/* USER DROPDOWN */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-full p-0 flex-shrink-0" // CRITICAL FIX!
+                className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-full p-0 flex-shrink-0"
               >
                 <Avatar className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8">
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
