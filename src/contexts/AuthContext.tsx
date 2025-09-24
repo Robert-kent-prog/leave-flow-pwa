@@ -17,7 +17,7 @@ interface ApiError {
 }
 
 // Backend API base URL - update this with your actual backend URL
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = "http://192.168.15.8:9000/api";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (userData && token) {
           // Verify token is still valid with backend
           try {
-            const userInfo = await apiRequest("/auth/me");
+            const userInfo = await apiRequest("/auth/verify");
             setUser(userInfo.user);
           } catch (error) {
             // Token is invalid, clear storage
@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Remove confirmPassword before sending to backend
       const { confirmPassword, ...signupData } = userData;
 
-      const response: LoginResponse = await apiRequest("/auth/signup", {
+      const response: LoginResponse = await apiRequest("/system_users", {
         method: "POST",
         body: JSON.stringify(signupData),
       });
