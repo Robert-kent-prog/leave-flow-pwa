@@ -13,6 +13,11 @@ interface LoginResponse {
   message: string;
 }
 
+interface VerifyTokenResponse {
+  valid: boolean;
+  user: User;
+}
+
 const API_BASE_URL = "http://192.168.15.8:9000/api";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -22,21 +27,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Check if user is logged in on app load
+  // Helper function for authenticated API calls
+  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem("token");
+
+    const config: RequestInit = {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("API request failed:", error);
+      throw error;
+    }
+  };
+
+  // Check if user is logged in on app load using token verification
   useEffect(() => {
-    const checkAuthStatus = () => {
+    const checkAuthStatus = async () => {
       try {
         const userData = localStorage.getItem("user");
         const token = localStorage.getItem("token");
 
         if (userData && token) {
-          const user = JSON.parse(userData);
-          setUser(user);
+          try {
+            // Verify token with backend
+            const response: VerifyTokenResponse = await apiRequest(
+              "/auth/verify"
+            );
+            if (response.valid) {
+              setUser(response.user);
+            } else {
+              throw new Error("Token invalid");
+            }
+          } catch (error) {
+            console.log("Token verification failed, clearing auth data");
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+            setUser(null);
+          }
         }
       } catch (error) {
         console.error("Error checking auth status:", error);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
       } finally {
         setIsLoading(false);
       }
@@ -66,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const data: LoginResponse = await response.json();
 
+      // Store user data and token
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("token", data.accessToken);
@@ -118,15 +166,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const googleSignIn = () => {
-    window.location.href = `${API_BASE_URL}/auth/google`;
+  const logout = async (): Promise<void> => {
+    try {
+      // Call backend logout endpoint if needed
+      await apiRequest("/auth/logout", { method: "POST" });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Always clear frontend state
+      setUser(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      navigate("/login", { replace: true });
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login", { replace: true });
+  const googleSignIn = () => {
+    window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   const contextValue: AuthContextType = {
