@@ -1,34 +1,12 @@
 // contexts/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  department: string;
-  phone: string;
-  role: "admin" | "manager" | "employee";
-  avatar?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (identifier: string, password: string) => Promise<boolean>;
-  signup: (userData: SignupData) => Promise<boolean>;
-  logout: () => void;
-  googleSignIn: () => void;
-  isLoading: boolean;
-}
-
-interface SignupData {
-  username: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  department: string;
-  phone: string;
-}
+import {
+  AuthContext,
+  AuthContextType,
+  User,
+  SignupData,
+} from "./AuthContextInstance";
 
 interface LoginResponse {
   user: User;
@@ -41,8 +19,6 @@ interface ApiError {
 
 // Backend API base URL - update this with your actual backend URL
 const API_BASE_URL = "http://localhost:5000/api";
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -176,20 +152,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     navigate("/login");
   };
 
-  return (
-    <AuthContext.Provider
-      value={{ user, login, signup, logout, googleSignIn, isLoading }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  const contextValue: AuthContextType = {
+    user,
+    login,
+    signup,
+    logout,
+    googleSignIn,
+    isLoading,
+  };
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
 };
