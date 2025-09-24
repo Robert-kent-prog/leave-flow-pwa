@@ -232,10 +232,10 @@ const Signup = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-2xl shadow-xl border-0">
         <CardHeader className="space-y-1 text-center pb-6">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
             <User className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-br from-green-600 to-blue-700 bg-clip-text text-transparent">
+          <CardTitle className="text-2xl font-bold bg-gradient-to-br from-blue-600 to-indigo-700 bg-clip-text text-transparent">
             Join Our Team
           </CardTitle>
           <CardDescription className="text-base">
@@ -520,7 +520,7 @@ const Signup = () => {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-gradient-to-br from-green-600 to-blue-700 hover:from-green-700 hover:to-blue-800 text-white font-semibold shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full h-11 bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (

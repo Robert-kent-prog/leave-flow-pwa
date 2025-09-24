@@ -224,7 +224,7 @@ const Login = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">
-                      Email, Username, or Staff ID
+                      Email, Username, or Staff ID *
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
@@ -254,7 +254,7 @@ const Login = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">
-                      Password
+                      Password *
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
