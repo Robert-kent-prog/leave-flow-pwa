@@ -131,12 +131,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Enhanced signup function with better error handling
   const signup = async (userData: SignupData): Promise<boolean> => {
     setIsLoading(true);
     try {
       const { confirmPassword, ...signupData } = userData;
 
-      const response = await fetch(`${API_BASE_URL}/system_users`, {
+      // console.log("Sending signup data:", signupData);
+
+      // Step 1: Create user account
+      const signupResponse = await fetch(`${API_BASE_URL}/system_users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -144,28 +148,97 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         body: JSON.stringify(signupData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!signupResponse.ok) {
+        const errorData = await signupResponse.json();
         throw new Error(errorData.message || "Signup failed");
       }
 
-      const data = await response.json();
-      setUser(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.accessToken || data.token);
+      const signupResult = await signupResponse.json();
+      // console.log("Signup response:", signupResult);
 
-      navigate("/", { replace: true });
-      return true;
+      // Check if signup was successful
+      if (!signupResult.success) {
+        throw new Error(signupResult.message || "Signup failed");
+      }
+
+      // console.log("User created successfully, attempting auto-login...");
+
+      // Step 2: Auto-login the user
+      const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          identifier: userData.email, // Try email first
+          password: userData.password,
+        }),
+      });
+
+      if (loginResponse.ok) {
+        const loginData: LoginResponse = await loginResponse.json();
+        // console.log("Auto-login successful:", loginData);
+
+        // Auto-authenticate the user
+        setUser(loginData.user);
+        localStorage.setItem("user", JSON.stringify(loginData.user));
+        localStorage.setItem("token", loginData.accessToken);
+
+        navigate("/", { replace: true });
+        return true;
+      } else {
+        const loginResponse2 = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            identifier: userData.username, // Try username
+            password: userData.password,
+          }),
+        });
+
+        if (loginResponse2.ok) {
+          const loginData: LoginResponse = await loginResponse2.json();
+          // console.log("Auto-login with username successful:", loginData);
+
+          setUser(loginData.user);
+          localStorage.setItem("user", JSON.stringify(loginData.user));
+          localStorage.setItem("token", loginData.accessToken);
+
+          navigate("/", { replace: true });
+          return true;
+        } else {
+          // Both login attempts failed
+          const errorData = await loginResponse2.json();
+          throw new Error(
+            `Signup successful but auto-login failed: ${errorData.message}`
+          );
+        }
+      }
     } catch (error) {
       console.error("Signup error:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Signup failed";
+
+      // Provide user-friendly error messages
+      let errorMessage = "Signup failed. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes("already exists")) {
+          errorMessage =
+            "An account with this email or username already exists.";
+        } else if (error.message.includes("auto-login failed")) {
+          errorMessage = "Account created successfully! Please login manually.";
+          // Optionally navigate to login page
+          setTimeout(() => navigate("/login"), 2000);
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
-
   const logout = async (): Promise<void> => {
     try {
       // Call backend logout endpoint if needed

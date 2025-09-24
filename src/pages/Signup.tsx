@@ -96,15 +96,22 @@ const Signup = () => {
     },
   });
 
-  const showSuccessToast = (message: string) => {
+  const showSuccessToast = (message: string, autoLoggedIn: boolean = true) => {
     toast.success(message, {
-      description: "Your account has been created successfully!",
+      description: autoLoggedIn
+        ? "You have been automatically logged in!"
+        : "Please login with your credentials.",
       duration: 5000,
       icon: <CheckCircle className="h-5 w-5 text-green-500" />,
-      action: {
-        label: "View Dashboard",
-        onClick: () => (window.location.href = "/"),
-      },
+      action: autoLoggedIn
+        ? {
+            label: "View Dashboard",
+            onClick: () => (window.location.href = "/"),
+          }
+        : {
+            label: "Login Now",
+            onClick: () => (window.location.href = "/login"),
+          },
       classNames: {
         toast:
           "group border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800",
@@ -158,6 +165,7 @@ const Signup = () => {
     });
   };
 
+  // Signup.tsx - Update the onSubmit function
   const onSubmit = async (data: SignupFormValues) => {
     setIsSubmitting(true);
 
@@ -168,18 +176,17 @@ const Signup = () => {
     });
 
     try {
-      // Map to backend expected format
+      // Map to backend expected format (remove confirmPassword for backend)
       const signupData = {
         username: data.username,
         staffId: data.staffId,
         email: data.email,
         password: data.password,
-        confirmPassword: data.confirmPassword,
         fullName: data.fullName,
         department: data.department,
         phone: data.phone,
         role: data.role,
-        // confirmPassword is only for frontend validation, not sent to backend
+        confirmPassword: data.confirmPassword, // keep for frontend validation
       };
 
       await signup(signupData);
@@ -187,6 +194,9 @@ const Signup = () => {
       // Dismiss loading toast and show success
       toast.dismiss(loadingToastId);
       showSuccessToast("Account created successfully! 🎉");
+
+      // Note: Navigation happens automatically in the signup function
+      // after successful authentication
     } catch (error: unknown) {
       const message =
         error instanceof Error
