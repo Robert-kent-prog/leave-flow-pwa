@@ -20,6 +20,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotificationPage from "./pages/Notifications";
+import PasswordReset from "./pages/PasswordReset";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +37,7 @@ const App = () => (
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-
+              <Route path="/forgot-password" element={<PasswordReset />} />
               {/* Protected routes */}
               <Route
                 path="/"
