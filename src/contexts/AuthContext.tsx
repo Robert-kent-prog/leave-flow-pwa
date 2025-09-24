@@ -1,3 +1,4 @@
+// contexts/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -13,7 +14,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (identifier: string, password: string) => Promise<boolean>;
   signup: (userData: SignupData) => Promise<boolean>;
   logout: () => void;
   googleSignIn: () => void;
@@ -29,6 +30,18 @@ interface SignupData {
   phone: string;
 }
 
+interface LoginResponse {
+  user: User;
+  token: string;
+}
+
+interface ApiError {
+  message: string;
+}
+
+// Backend API base URL - update this with your actual backend URL
+const API_BASE_URL = "http://localhost:5000/api";
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -38,15 +51,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Helper function for API calls
+  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem("token");
+
+    const config: RequestInit = {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+      if (!response.ok) {
+        const errorData: ApiError = await response
+          .json()
+          .catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+        throw new Error(errorData.message);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("API request failed:", error);
+      throw error;
+    }
+  };
+
   // Check if user is logged in on app load
   useEffect(() => {
-    const checkAuthStatus = () => {
+    const checkAuthStatus = async () => {
       try {
         const userData = localStorage.getItem("user");
         const token = localStorage.getItem("token");
 
         if (userData && token) {
-          setUser(JSON.parse(userData));
+          // Verify token is still valid with backend
+          try {
+            const userInfo = await apiRequest("/auth/me");
+            setUser(userInfo.user);
+          } catch (error) {
+            // Token is invalid, clear storage
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+            setUser(null);
+          }
         }
       } catch (error) {
         console.error("Error checking auth status:", error);
@@ -58,35 +110,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     checkAuthStatus();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (
+    identifier: string,
+    password: string
+  ): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call - replace with actual authentication
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response: LoginResponse = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ identifier, password }),
+      });
 
-      // Mock validation - replace with real authentication
-      if (email && password.length >= 6) {
-        const userData: User = {
-          id: "1",
-          username: "HR Admin",
-          email: email,
-          department: "Human Resources",
-          phone: "+1 (555) 123-4567",
-          role: "admin",
-        };
+      setUser(response.user);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      localStorage.setItem("token", response.token);
 
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("token", "mock-jwt-token");
-
-        navigate("/");
-        return true;
-      } else {
-        throw new Error("Invalid credentials");
-      }
+      navigate("/");
+      return true;
     } catch (error) {
       console.error("Login error:", error);
-      return false;
+      const errorMessage =
+        error instanceof Error ? error.message : "Login failed";
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -95,54 +140,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signup = async (userData: SignupData): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call - replace with actual registration
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Remove confirmPassword before sending to backend
+      const { confirmPassword, ...signupData } = userData;
 
-      // Mock validation - replace with real registration
-      if (userData.password !== userData.confirmPassword) {
-        throw new Error("Passwords do not match");
-      }
+      const response: LoginResponse = await apiRequest("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify(signupData),
+      });
 
-      const newUser: User = {
-        id: Date.now().toString(),
-        username: userData.username,
-        email: userData.email,
-        department: userData.department,
-        phone: userData.phone,
-        role: "employee", // Default role for new signups
-      };
-
-      setUser(newUser);
-      localStorage.setItem("user", JSON.stringify(newUser));
-      localStorage.setItem("token", "mock-jwt-token");
+      setUser(response.user);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      localStorage.setItem("token", response.token);
 
       navigate("/");
       return true;
     } catch (error) {
       console.error("Signup error:", error);
-      return false;
+      const errorMessage =
+        error instanceof Error ? error.message : "Signup failed";
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   const googleSignIn = () => {
-    // This would integrate with Google OAuth
-    // For now, we'll simulate a successful Google login
-    const googleUser: User = {
-      id: "google-123",
-      username: "Google User",
-      email: "google.user@company.com",
-      department: "IT",
-      phone: "+1 (555) 987-6543",
-      role: "employee",
-    };
-
-    setUser(googleUser);
-    localStorage.setItem("user", JSON.stringify(googleUser));
-    localStorage.setItem("token", "google-oauth-token");
-
-    navigate("/");
+    // For Google OAuth, you'll typically redirect to backend OAuth endpoint
+    window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   const logout = () => {
