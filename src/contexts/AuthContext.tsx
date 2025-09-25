@@ -45,6 +45,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
+
+        // If token is invalid/expired, logout
+        if (response.status === 401) {
+          console.warn("🔒 Token expired or invalid — logging out");
+          logout(); // assuming logout is available here
+        }
+
         throw new Error(
           errorData.message || `HTTP error! status: ${response.status}`
         );
@@ -56,40 +63,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw error;
     }
   };
-
-  // Check if user is logged in on app load using token verification
+  // Helper: Validate if user object is valid
+  const isValidUser = (user: unknown): user is User => {
+    return (
+      typeof user === "object" &&
+      user !== null &&
+      "_id" in user &&
+      "email" in user &&
+      "username" in user
+    );
+  };
+  // Check if user is logged in on app load
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         const userData = localStorage.getItem("user");
         const token = localStorage.getItem("token");
+        // First, try to set user from localStorage immediately for fast UI
+        if (userData) {
+          try {
+            const parsedUser = JSON.parse(userData);
+            if (isValidUser(parsedUser)) {
+              setUser(parsedUser);
+            } else {
+              localStorage.removeItem("user");
+              localStorage.removeItem("token");
+            }
+          } catch (parseError) {
+            console.error("Error parsing localStorage user:", parseError);
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+          }
+        }
 
+        // Then verify with backend in background
         if (userData && token) {
           try {
-            // Verify token with backend
             const response: VerifyTokenResponse = await apiRequest(
               "/auth/verify"
             );
-            if (response.valid) {
+
+            if (response.valid && isValidUser(response.user)) {
               setUser(response.user);
+              localStorage.setItem("user", JSON.stringify(response.user));
             } else {
-              throw new Error("Token invalid");
+              // Keep existing user if valid, else log out
+              if (!isValidUser(user)) {
+                setUser(null);
+                localStorage.removeItem("user");
+                localStorage.removeItem("token");
+              }
             }
           } catch (error) {
-            console.log("Token verification failed, clearing auth data");
-            localStorage.removeItem("user");
-            localStorage.removeItem("token");
-            setUser(null);
+            console.error("Token verification failed:", error);
+            // Network error or backend down — keep using localStorage data if valid
+            if (!isValidUser(user)) {
+              setUser(null);
+              localStorage.removeItem("user");
+              localStorage.removeItem("token");
+            }
           }
+        } else if (!userData && !token) {
+          setUser(null);
         }
       } catch (error) {
-        console.error("Error checking auth status:", error);
+        if (!isValidUser(user)) {
+          setUser(null);
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     checkAuthStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (
