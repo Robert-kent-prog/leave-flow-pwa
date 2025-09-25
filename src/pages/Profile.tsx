@@ -271,7 +271,9 @@ const Profile = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Profile</h2>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+          Profile
+        </h1>
         <p className="text-muted-foreground">
           Manage your account settings and personal information.
         </p>

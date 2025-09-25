@@ -29,15 +29,15 @@ const mockEmployees: Employee[] = [
     pNumber: "P001",
     designation: "Software Engineer",
     dutyStation: "Head Office",
-    phone: "+254-700-123456"
+    phone: "+254-700-123456",
   },
   {
     id: "2",
     name: "Sarah Wilson",
-    pNumber: "P002", 
+    pNumber: "P002",
     designation: "HR Manager",
     dutyStation: "Head Office",
-    phone: "+254-700-789012"
+    phone: "+254-700-789012",
   },
   {
     id: "3",
@@ -45,8 +45,8 @@ const mockEmployees: Employee[] = [
     pNumber: "P003",
     designation: "Accountant",
     dutyStation: "Branch Office",
-    phone: "+254-700-345678"
-  }
+    phone: "+254-700-345678",
+  },
 ];
 
 export default function Employees() {
@@ -61,25 +61,26 @@ export default function Employees() {
     pNumber: "",
     designation: "",
     dutyStation: "",
-    phone: ""
+    phone: "",
   });
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.pNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.designation.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.pNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.designation.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (editingEmployee) {
       // Update existing employee
-      setEmployees(prev => prev.map(emp => 
-        emp.id === editingEmployee.id 
-          ? { ...emp, ...formData }
-          : emp
-      ));
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === editingEmployee.id ? { ...emp, ...formData } : emp
+        )
+      );
       toast({
         title: "Employee Updated",
         description: "Employee information has been updated successfully.",
@@ -88,15 +89,15 @@ export default function Employees() {
       // Add new employee
       const newEmployee: Employee = {
         id: Date.now().toString(),
-        ...formData
+        ...formData,
       };
-      setEmployees(prev => [...prev, newEmployee]);
+      setEmployees((prev) => [...prev, newEmployee]);
       toast({
         title: "Employee Added",
         description: "New employee has been added successfully.",
       });
     }
-    
+
     resetForm();
   };
 
@@ -106,7 +107,7 @@ export default function Employees() {
       pNumber: "",
       designation: "",
       dutyStation: "",
-      phone: ""
+      phone: "",
     });
     setEditingEmployee(null);
     setIsAddDialogOpen(false);
@@ -119,13 +120,13 @@ export default function Employees() {
       pNumber: employee.pNumber,
       designation: employee.designation,
       dutyStation: employee.dutyStation,
-      phone: employee.phone
+      phone: employee.phone,
     });
     setIsAddDialogOpen(true);
   };
 
   const handleDelete = (id: string) => {
-    setEmployees(prev => prev.filter(emp => emp.id !== id));
+    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
     toast({
       title: "Employee Deleted",
       description: "Employee has been removed from the system.",
@@ -137,10 +138,14 @@ export default function Employees() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Employee Management</h1>
-          <p className="text-muted-foreground">Manage your organization's employees</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+            Employee Management
+          </h1>
+          <p className="text-muted-foreground">
+            Manage your organization's employees
+          </p>
         </div>
-        
+
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-primary to-primary-hover">
@@ -160,56 +165,75 @@ export default function Employees() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
                   placeholder="Enter full name"
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="pNumber">P/Number</Label>
                 <Input
                   id="pNumber"
                   value={formData.pNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, pNumber: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      pNumber: e.target.value,
+                    }))
+                  }
                   placeholder="Enter P/Number"
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="designation">Designation</Label>
                 <Input
                   id="designation"
                   value={formData.designation}
-                  onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      designation: e.target.value,
+                    }))
+                  }
                   placeholder="Enter job designation"
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="dutyStation">Duty Station</Label>
                 <Input
                   id="dutyStation"
                   value={formData.dutyStation}
-                  onChange={(e) => setFormData(prev => ({ ...prev, dutyStation: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      dutyStation: e.target.value,
+                    }))
+                  }
                   placeholder="Enter duty station"
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
                   placeholder="Enter phone number"
                   required
                 />
               </div>
-              
+
               <div className="flex gap-2 pt-4">
                 <Button type="submit" className="flex-1">
                   {editingEmployee ? "Update" : "Add"} Employee
@@ -242,14 +266,19 @@ export default function Employees() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-0 shadow-card bg-gradient-card">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-foreground">{employees.length}</div>
+            <div className="text-2xl font-bold text-foreground">
+              {employees.length}
+            </div>
             <p className="text-sm text-muted-foreground">Total Employees</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-card bg-gradient-card">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-foreground">
-              {employees.filter(emp => emp.dutyStation === "Head Office").length}
+              {
+                employees.filter((emp) => emp.dutyStation === "Head Office")
+                  .length
+              }
             </div>
             <p className="text-sm text-muted-foreground">Head Office</p>
           </CardContent>
@@ -257,7 +286,10 @@ export default function Employees() {
         <Card className="border-0 shadow-card bg-gradient-card">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-foreground">
-              {employees.filter(emp => emp.dutyStation === "Branch Office").length}
+              {
+                employees.filter((emp) => emp.dutyStation === "Branch Office")
+                  .length
+              }
             </div>
             <p className="text-sm text-muted-foreground">Branch Office</p>
           </CardContent>
@@ -272,16 +304,25 @@ export default function Employees() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredEmployees.map((employee) => (
-              <Card key={employee.id} className="border bg-gradient-card hover:shadow-elevation transition-all duration-200">
+              <Card
+                key={employee.id}
+                className="border bg-gradient-card hover:shadow-elevation transition-all duration-200"
+              >
                 <CardContent className="pt-6">
                   <div className="space-y-3">
                     <div>
-                      <h3 className="font-semibold text-lg text-foreground">{employee.name}</h3>
-                      <p className="text-sm text-muted-foreground">{employee.pNumber}</p>
+                      <h3 className="font-semibold text-lg text-foreground">
+                        {employee.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {employee.pNumber}
+                      </p>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <p className="text-sm text-foreground font-medium">{employee.designation}</p>
+                      <p className="text-sm text-foreground font-medium">
+                        {employee.designation}
+                      </p>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <MapPin className="w-4 h-4 mr-1" />
                         {employee.dutyStation}
@@ -291,7 +332,7 @@ export default function Employees() {
                         {employee.phone}
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2 pt-2">
                       <Button
                         size="sm"
@@ -316,10 +357,12 @@ export default function Employees() {
               </Card>
             ))}
           </div>
-          
+
           {filteredEmployees.length === 0 && (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No employees found matching your search.</p>
+              <p className="text-muted-foreground">
+                No employees found matching your search.
+              </p>
             </div>
           )}
         </CardContent>

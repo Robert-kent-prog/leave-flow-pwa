@@ -243,8 +243,8 @@ export default function Reports() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Reports & Analytics
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+            Analytics
           </h1>
           <p className="text-muted-foreground">
             Generate and view comprehensive leave management reports
@@ -265,7 +265,6 @@ export default function Reports() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* MOBILE: Vertical stacked layout */}
           <div className="md:hidden space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Year</label>
@@ -326,7 +325,6 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* DESKTOP: Grid layout */}
           <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Year</label>

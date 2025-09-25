@@ -100,9 +100,11 @@ export default function LeaveRequest() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <FileText className="h-8 w-8 text-primary" />
+        <FileText className="h-6 w-6 sm:h-8 sm:w-8" />
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Leave Request</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+            Leave Request
+          </h1>
           <p className="text-muted-foreground">
             Submit a new leave application
           </p>

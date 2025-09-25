@@ -119,7 +119,9 @@ export default function LeaveSchedule() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Leave Schedule</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+            Leave Schedule
+          </h1>
           <p className="text-muted-foreground">
             View and manage employee leave schedules
           </p>

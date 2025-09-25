@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Calendar, Clock, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -13,17 +13,27 @@ import {
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 5 }, (_, i) => currentYear + i - 2);
 const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 const leaveTypes = [
   "Annual Leave",
-  "Sick Leave", 
+  "Sick Leave",
   "Maternity Leave",
   "Paternity Leave",
   "Compassionate Leave",
-  "Other"
+  "Other",
 ];
 
 export default function LeaveSchedule() {
@@ -35,8 +45,12 @@ export default function LeaveSchedule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Leave Schedule</h1>
-          <p className="text-muted-foreground">Plan and schedule employee leave requests</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+            Leave Schedule
+          </h1>
+          <p className="text-muted-foreground">
+            Plan and schedule employee leave requests
+          </p>
         </div>
         <Button className="bg-gradient-to-r from-primary to-primary-hover">
           <Calendar className="mr-2 h-4 w-4" />
@@ -52,7 +66,9 @@ export default function LeaveSchedule() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Year</label>
+              <label className="text-sm font-medium text-foreground">
+                Year
+              </label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select year" />
@@ -68,7 +84,9 @@ export default function LeaveSchedule() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Month</label>
+              <label className="text-sm font-medium text-foreground">
+                Month
+              </label>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select month" />
@@ -84,7 +102,9 @@ export default function LeaveSchedule() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Leave Type</label>
+              <label className="text-sm font-medium text-foreground">
+                Leave Type
+              </label>
               <Select>
                 <SelectTrigger>
                   <SelectValue placeholder="All leave types" />
@@ -107,13 +127,16 @@ export default function LeaveSchedule() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            Leave Calendar - {selectedYear} {selectedMonth ? months[parseInt(selectedMonth)] : "All Months"}
+            Leave Calendar - {selectedYear}{" "}
+            {selectedMonth ? months[parseInt(selectedMonth)] : "All Months"}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-muted-foreground">
             <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Interactive Calendar Coming Soon</h3>
+            <h3 className="text-lg font-medium mb-2">
+              Interactive Calendar Coming Soon
+            </h3>
             <p>This will display an interactive calendar showing:</p>
             <ul className="text-sm mt-2 space-y-1">
               <li>• Employee leave schedules</li>
@@ -135,7 +158,9 @@ export default function LeaveSchedule() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">12</div>
-                <p className="text-sm text-muted-foreground">Employees on Leave Today</p>
+                <p className="text-sm text-muted-foreground">
+                  Employees on Leave Today
+                </p>
               </div>
             </div>
           </CardContent>
@@ -149,7 +174,9 @@ export default function LeaveSchedule() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">23</div>
-                <p className="text-sm text-muted-foreground">Pending Approvals</p>
+                <p className="text-sm text-muted-foreground">
+                  Pending Approvals
+                </p>
               </div>
             </div>
           </CardContent>
@@ -163,7 +190,9 @@ export default function LeaveSchedule() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">156</div>
-                <p className="text-sm text-muted-foreground">Approved This Month</p>
+                <p className="text-sm text-muted-foreground">
+                  Approved This Month
+                </p>
               </div>
             </div>
           </CardContent>
