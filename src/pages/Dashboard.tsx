@@ -1,59 +1,62 @@
-import { Users, Calendar, Clock, TrendingUp } from "lucide-react";
+import {
+  Users,
+  Calendar,
+  Clock,
+  TrendingUp,
+  Plus,
+  ArrowUpRight,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
+// Simplified stats - only essential metrics
 const stats = [
   {
     title: "Total Employees",
     value: "248",
     change: "+12%",
     icon: Users,
-    color: "text-primary",
+    description: "Active staff members",
   },
   {
     title: "Pending Requests",
     value: "23",
     change: "+8%",
     icon: Clock,
-    color: "text-warning",
+    description: "Awaiting approval",
   },
   {
     title: "Approved This Month",
     value: "156",
     change: "+15%",
     icon: Calendar,
-    color: "text-success",
-  },
-  {
-    title: "Leave Utilization",
-    value: "78%",
-    change: "+5%",
-    icon: TrendingUp,
-    color: "text-primary",
+    description: "Leave requests approved",
   },
 ];
 
+// Simplified recent requests - only critical info
 const recentRequests = [
   {
     employee: "John Doe",
     type: "Annual Leave",
-    dates: "Dec 15 - Dec 22",
-    status: "Pending",
+    dates: "Dec 15-22",
+    status: "pending",
     days: 6,
   },
   {
     employee: "Sarah Wilson",
     type: "Sick Leave",
-    dates: "Dec 12 - Dec 13",
-    status: "Approved",
+    dates: "Dec 12-13",
+    status: "approved",
     days: 2,
   },
   {
     employee: "Michael Chen",
     type: "Paternity Leave",
-    dates: "Jan 5 - Feb 2",
-    status: "Pending",
+    dates: "Jan 5-Feb 2",
+    status: "pending",
     days: 20,
   },
 ];
@@ -63,81 +66,114 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header Section - Matches notification page styling */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <TrendingUp className="h-8 w-8" />
+            Dashboard Overview
+          </h1>
           <p className="text-muted-foreground">
-            Welcome back! Here's your leave management overview.
+            Welcome back! Here's your leave management summary.
           </p>
         </div>
         <Button
-          className="bg-gradient-to-r from-primary to-primary-hover"
+          className="bg-primary hover:bg-primary/90"
           onClick={() => navigate("/request")}
+          size="sm"
         >
-          New Leave Request
+          <Plus className="mr-2 h-4 w-4" />
+          New Request
         </Button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Grid - Consistent with other pages */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {stats.map((stat, index) => (
-          <Card key={index} className="border-0 shadow-card bg-gradient-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {stat.value}
+          <Card key={index}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {stat.title}
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-foreground">
+                      {stat.value}
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {stat.change}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {stat.description}
+                  </p>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <stat.icon className="h-6 w-6 text-primary" />
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-success font-medium">{stat.change}</span>{" "}
-                from last month
-              </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Main Content Grid - Matches notification page layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Requests */}
-        <Card className="lg:col-span-2 border-0 shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              Recent Leave Requests
-            </CardTitle>
+        {/* Recent Requests - Consistent with notification card styling */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Clock className="h-6 w-6 text-primary" />
+                Recent Leave Requests
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/requests")}
+              >
+                View All
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {recentRequests.map((request, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                  className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-sm ${
+                    request.status === "pending"
+                      ? "bg-blue-50 border-blue-200"
+                      : "bg-white border-border"
+                  }`}
                 >
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">
-                      {request.employee}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {request.type}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {request.dates} ({request.days} days)
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full font-medium ${
-                        request.status === "Approved"
-                          ? "bg-success/10 text-success"
-                          : "bg-warning/10 text-warning"
-                      }`}
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-2">
+                        <p className="font-semibold text-foreground text-sm truncate">
+                          {request.employee}
+                        </p>
+                        <span className="text-xs text-muted-foreground hidden sm:inline">
+                          •
+                        </span>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {request.type}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {request.dates} • {request.days} days
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        request.status === "approved" ? "default" : "secondary"
+                      }
+                      className="text-xs whitespace-nowrap"
                     >
                       {request.status}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               ))}
@@ -145,39 +181,53 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <Card className="border-0 shadow-card">
+        {/* Quick Actions - Consistent with notification settings card */}
+        <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>Quick Access</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button
-              className="w-full justify-start"
               variant="outline"
+              className="w-full justify-start h-11"
               onClick={() => navigate("/employees")}
             >
-              <Users className="mr-2 h-4 w-4" />
-              Manage Employees
+              <Users className="mr-3 h-4 w-4" />
+              Employee Management
             </Button>
             <Button
-              className="w-full justify-start"
               variant="outline"
+              className="w-full justify-start h-11"
               onClick={() => navigate("/history")}
             >
-              <Clock className="mr-2 h-4 w-4" />
-              View History
+              <Calendar className="mr-3 h-4 w-4" />
+              Leave History
             </Button>
             <Button
-              className="w-full justify-start"
               variant="outline"
+              className="w-full justify-start h-11"
               onClick={() => navigate("/reports")}
             >
-              <TrendingUp className="mr-2 h-4 w-4" />
-              View Reports
+              <TrendingUp className="mr-3 h-4 w-4" />
+              Reports
             </Button>
           </CardContent>
         </Card>
       </div>
+
+      {/* Future Features Card - Consistent styling */}
+      <Card className="border-dashed">
+        <CardContent className="p-6 text-center">
+          <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="font-medium text-foreground text-lg mb-2">
+            More Features Coming Soon
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Analytics dashboard and advanced reporting will be available in the
+            next update.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
