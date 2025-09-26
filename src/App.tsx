@@ -23,14 +23,15 @@ import NotificationPage from "./pages/Notifications";
 import PasswordReset from "./pages/PasswordReset";
 import { LeavePlanner } from "./components/LeavePlanner/LeavePlanner";
 import { CompanyLeavePlanner } from "./components/CompanyLeavePlanner/CompanyLeavePlanner";
-// import { Permission } from "./types/leave";
+import { Permission } from "./types/leave";
 
 const queryClient = new QueryClient();
-// // eslint-disable-next-line react-hooks/rules-of-hooks
-// const [permissions] = useState<Permission>({
-//   viewLeaves: true,
-//   manageLeaves: true, // Set based on user role
-// });
+
+// Temporary permissions for development - allow everything
+const tempPermissions: Permission = {
+  viewLeaves: true,
+  manageLeaves: true,
+};
 
 const App = () => (
   <ThemeProvider>
@@ -39,13 +40,13 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          {/* Move AuthProvider inside BrowserRouter */}
           <AuthProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<PasswordReset />} />
+
               {/* Protected routes */}
               <Route
                 path="/"
@@ -58,14 +59,19 @@ const App = () => (
                 <Route index element={<Dashboard />} />
                 <Route path="employees" element={<NewEmployees />} />
                 <Route path="schedule" element={<LeaveSchedule />} />
-                <Route path="calender" element={<LeavePlanner />} />
-                <Route path="request" element={<LeaveRequest />} />
+
+                <Route path="calendar" element={<LeavePlanner />} />
+
                 <Route
-                  path="companyplanner"
-                  element={<CompanyLeavePlanner permissions={undefined} />}
+                  path="company-planner"
+                  element={
+                    <CompanyLeavePlanner permissions={tempPermissions} />
+                  }
                 />
+
+                <Route path="request" element={<LeaveRequest />} />
                 <Route path="history" element={<LeaveHistory />} />
-                <Route path="reports" element={<Reports />} />
+                <Route path="analytics" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="notifications" element={<NotificationPage />} />

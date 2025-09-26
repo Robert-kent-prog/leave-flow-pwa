@@ -212,7 +212,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // console.log("User created successfully, attempting auto-login...");
 
-      // Step 2: Auto-login the user
       const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {

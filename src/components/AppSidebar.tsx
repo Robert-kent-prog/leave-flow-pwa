@@ -32,13 +32,14 @@ export function AppSidebar() {
   const mainItems = [
     { title: "Dashboard", url: "/", icon: Home },
     { title: "New Leave Request", url: "/request", icon: Plus },
-    { title: "Leave History", url: "/history", icon: Clock },
+    { title: "Leave History & Reports", url: "/history", icon: Clock },
   ];
 
   const managementItems = [
     { title: "Employees", url: "/employees", icon: Users },
-    { title: "Analytics", url: "/reports", icon: BarChart3 },
-    { title: "Calendar", url: "/calendar", icon: Calendar },
+    { title: "Analytics", url: "/analytics", icon: BarChart3 },
+    { title: "Company Leaves", url: "/company-planner", icon: Calendar },
+    // { title: "Team Leaves", url: "/calendar", icon: Calendar },
   ];
 
   const { state } = useSidebar();
