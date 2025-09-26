@@ -21,8 +21,16 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotificationPage from "./pages/Notifications";
 import PasswordReset from "./pages/PasswordReset";
+import { LeavePlanner } from "./components/LeavePlanner/LeavePlanner";
+import { CompanyLeavePlanner } from "./components/CompanyLeavePlanner/CompanyLeavePlanner";
+// import { Permission } from "./types/leave";
 
 const queryClient = new QueryClient();
+// // eslint-disable-next-line react-hooks/rules-of-hooks
+// const [permissions] = useState<Permission>({
+//   viewLeaves: true,
+//   manageLeaves: true, // Set based on user role
+// });
 
 const App = () => (
   <ThemeProvider>
@@ -50,7 +58,12 @@ const App = () => (
                 <Route index element={<Dashboard />} />
                 <Route path="employees" element={<NewEmployees />} />
                 <Route path="schedule" element={<LeaveSchedule />} />
+                <Route path="calender" element={<LeavePlanner />} />
                 <Route path="request" element={<LeaveRequest />} />
+                <Route
+                  path="companyplanner"
+                  element={<CompanyLeavePlanner permissions={undefined} />}
+                />
                 <Route path="history" element={<LeaveHistory />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
