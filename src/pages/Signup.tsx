@@ -27,7 +27,6 @@ import {
   Mail,
   Lock,
   User,
-  Building,
   Phone,
   Loader2,
   CheckCircle,
@@ -49,22 +48,16 @@ const signupFormSchema = z
     email: z.string().email({
       message: "Please enter a valid email address.",
     }),
-    fullName: z.string().min(2, {
-      message: "Full name must be at least 2 characters.",
-    }),
     password: z.string().min(6, {
       message: "Password must be at least 6 characters.",
     }),
     confirmPassword: z.string().min(6, {
       message: "Password must be at least 6 characters.",
     }),
-    department: z.string().min(1, {
-      message: "Department is required.",
-    }),
     phone: z.string().min(10, {
       message: "Please enter a valid phone number.",
     }),
-    role: z.enum(["admin", "manager", "hr"], {
+    role: z.enum(["admin", "hr"], {
       message: "Please select a valid role.",
     }),
   })
@@ -87,10 +80,8 @@ const Signup = () => {
       username: "",
       staffId: "",
       email: "",
-      fullName: "",
       password: "",
       confirmPassword: "",
-      department: "",
       phone: "",
       role: "hr",
     },
@@ -165,7 +156,6 @@ const Signup = () => {
     });
   };
 
-  // Signup.tsx - Update the onSubmit function
   const onSubmit = async (data: SignupFormValues) => {
     setIsSubmitting(true);
 
@@ -182,8 +172,6 @@ const Signup = () => {
         staffId: data.staffId,
         email: data.email,
         password: data.password,
-        fullName: data.fullName,
-        department: data.department,
         phone: data.phone,
         role: data.role,
         confirmPassword: data.confirmPassword, // keep for frontend validation
@@ -335,20 +323,20 @@ const Signup = () => {
                   )}
                 />
 
-                {/* Full Name */}
+                {/* Phone */}
                 <FormField
                   control={form.control}
-                  name="fullName"
+                  name="phone"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-medium">
-                        Full Name *
+                        Phone *
                       </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                           <Input
-                            placeholder="John Doe"
+                            placeholder="+254 793 587 027"
                             className="pl-10 pr-4 h-11 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             {...field}
                             disabled={isSubmitting}
@@ -442,56 +430,6 @@ const Signup = () => {
                   )}
                 />
 
-                {/* Department */}
-                <FormField
-                  control={form.control}
-                  name="department"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">
-                        Department *
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                          <Input
-                            placeholder="Human Resources"
-                            className="pl-10 pr-4 h-11 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            {...field}
-                            disabled={isSubmitting}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Phone */}
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">
-                        Phone *
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                          <Input
-                            placeholder="+254 793 587 027"
-                            className="pl-10 pr-4 h-11 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            {...field}
-                            disabled={isSubmitting}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-
                 {/* Role */}
                 <FormField
                   control={form.control}
@@ -508,7 +446,6 @@ const Signup = () => {
                           disabled={isSubmitting}
                         >
                           <option value="hr">HR Manager</option>
-                          <option value="manager">Team Manager</option>
                           <option value="admin">Administrator</option>
                         </select>
                       </FormControl>

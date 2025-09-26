@@ -5,13 +5,10 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  department: string;
   phone: string;
-  role: "admin" | "manager" | "hr";
+  role: "admin" | "hr";
   avatar?: string;
-  // Optional: add staffId and fullName if you use them in the app
   staffId?: string;
-  fullName?: string;
 }
 
 export interface AuthContextType {
@@ -30,10 +27,8 @@ export interface SignupData {
   email: string;
   password: string;
   confirmPassword: string; // only for frontend validation
-  fullName: string;       // ← added
-  department: string;
   phone: string;
-  role: "admin" | "manager" | "hr"; // ← added
+  role: "admin" | "hr"; // ← added
 }
 
 // Create the context here

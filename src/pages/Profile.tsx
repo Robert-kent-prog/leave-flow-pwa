@@ -72,8 +72,8 @@ const profileFormSchema = z.object({
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
-  department: z.string().min(1, {
-    message: "Department is required.",
+  staffId: z.string().min(1, {
+    message: "StaffId is required.",
   }),
   phone: z.string().min(10, {
     message: "Please enter a valid phone number.",
@@ -137,7 +137,7 @@ const Profile = () => {
     defaultValues: {
       username: user?.username || "",
       email: user?.email || "",
-      department: user?.department || "",
+      staffId: user?.staffId || "",
       phone: user?.phone || "",
     },
   });
@@ -157,7 +157,7 @@ const Profile = () => {
       profileForm.reset({
         username: user.username,
         email: user.email,
-        department: user.department,
+        staffId: user.staffId,
         phone: user.phone,
       });
     }
@@ -420,16 +420,16 @@ const Profile = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={profileForm.control}
-                        name="department"
+                        name="staffId"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center">
                               <Building className="mr-2 h-4 w-4" />
-                              Department
+                              StaffId
                             </FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="Your department"
+                                placeholder="Your StaffId"
                                 {...field}
                                 disabled={!isEditing || isLoading}
                               />
