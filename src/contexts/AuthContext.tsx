@@ -18,6 +18,19 @@ interface VerifyTokenResponse {
   user: User;
 }
 
+interface UpdateProfileData {
+  username?: string;
+  email?: string;
+  phone?: string;
+  staffId?: string;
+}
+
+interface UpdateProfileResponse {
+  success: boolean;
+  message: string;
+  user: User;
+}
+
 const API_BASE_URL = "http://10.6.119.51:9000/api";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -313,6 +326,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     logout,
     googleSignIn,
     isLoading,
+  };
+
+  const updateProfile = async (
+    updateData: UpdateProfileData
+  ): Promise<User> => {
+    setIsLoading(true);
+    try {
+      const response: UpdateProfileResponse = await apiRequest(
+        "/auth/profile",
+        {
+          method: "PUT",
+          body: JSON.stringify(updateData),
+        }
+      );
+
+      if (!response.success) {
+        throw new Error(response.message || "Profile update failed");
+      }
+
+      // Update local state and storage
+      setUser(response.user);
+      localStorage.setItem("user", JSON.stringify(response.user));
+
+      return response.user;
+    } catch (error) {
+      console.error("Profile update error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Profile update failed";
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
