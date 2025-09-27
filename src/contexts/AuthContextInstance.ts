@@ -45,6 +45,7 @@ export interface UpdateProfileData {
 export interface ChangePasswordData {
   currentPassword: string;
   newPassword: string;
+  confirmNewPassword: string; // Add this property
 }
 // Create the context here
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

@@ -130,7 +130,7 @@ const Profile = () => {
       current: false,
     },
   ]);
-  const { user } = useAuth();
+  const { user, updateProfile, changePassword } = useAuth(); // Import the functions from context
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -166,15 +166,19 @@ const Profile = () => {
   async function onSubmitProfile(data: ProfileFormValues) {
     setIsLoading(true);
     try {
-      // Simulate API call - replace with actual profile update
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call the updateProfile function from AuthContext
+      const updatedUser = await updateProfile(data);
 
-      console.log("Profile updated:", data);
+      console.log("Profile updated successfully:", updatedUser);
       setIsEditing(false);
       toast.success("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update profile. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -183,20 +187,28 @@ const Profile = () => {
   async function onSubmitPassword(data: PasswordChangeValues) {
     setIsChangingPassword(true);
     try {
-      // Simulate API call - replace with actual password change
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call the changePassword function from AuthContext
+      await changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+        confirmNewPassword: data.confirmPassword,
+      });
 
-      console.log("Password changed:", data);
+      console.log("Password changed successfully");
       passwordForm.reset();
+      setIsChangingPassword(false);
       toast.success("Password changed successfully!");
     } catch (error) {
       console.error("Error changing password:", error);
-      toast.error("Failed to change password. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to change password. Please try again."
+      );
     } finally {
       setIsChangingPassword(false);
     }
   }
-
   const handleAvatarUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
