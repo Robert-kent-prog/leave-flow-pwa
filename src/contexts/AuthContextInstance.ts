@@ -16,6 +16,9 @@ export interface AuthContextType {
   login: (identifier: string, password: string) => Promise<boolean>;
   signup: (userData: SignupData) => Promise<boolean>;
   logout: () => void;
+  resetPassword: (email: string) => Promise<boolean>;
+  changePassword: (passwordData: ChangePasswordData) => Promise<boolean>; // Add this line
+  updateProfile: (updateData: UpdateProfileData) => Promise<User>; // Adjusted type
   googleSignIn: () => void;
   isLoading: boolean;
 }
@@ -31,5 +34,17 @@ export interface SignupData {
   role: "admin" | "hr"; // ← added
 }
 
+export interface UpdateProfileData {
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
+  phone?: string;
+  staffId?: string; // ← added
+}
+
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+}
 // Create the context here
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

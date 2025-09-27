@@ -31,6 +31,17 @@ interface UpdateProfileResponse {
   user: User;
 }
 
+interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+interface ChangePasswordResponse {
+  success: boolean;
+  message: string;
+}
+
 const API_BASE_URL = "http://10.6.119.51:9000/api";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -319,15 +330,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
-  const contextValue: AuthContextType = {
-    user,
-    login,
-    signup,
-    logout,
-    googleSignIn,
-    isLoading,
-  };
-
   const updateProfile = async (
     updateData: UpdateProfileData
   ): Promise<User> => {
@@ -358,6 +360,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const changePassword = async (
+    passwordData: ChangePasswordData
+  ): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      // Frontend validation
+      if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+        throw new Error("New passwords do not match");
+      }
+
+      if (passwordData.newPassword.length < 6) {
+        throw new Error("New password must be at least 6 characters long");
+      }
+
+      const response: ChangePasswordResponse = await apiRequest(
+        "/auth/change-password",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+          }),
+        }
+      );
+
+      if (!response.success) {
+        throw new Error(response.message || "Password change failed");
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Password change error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Password change failed";
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string): Promise<boolean> => {
+    try {
+      // Add logic to reset the password, e.g., API call
+      console.log(`Resetting password for email: ${email}`);
+      return true; // Return true if successful
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      return false; // Return false if there is an error
+    }
+  };
+
+  const contextValue: AuthContextType = {
+    user,
+    login,
+    signup,
+    logout,
+    updateProfile,
+    resetPassword,
+    changePassword,
+    googleSignIn,
+    isLoading,
   };
 
   return (
