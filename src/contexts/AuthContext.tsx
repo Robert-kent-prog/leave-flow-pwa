@@ -300,7 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
-  // Updated updateProfile function in AuthContext
+  // Fixed updateProfile function in AuthContext
   const updateProfile = async (
     updateData: UpdateProfileData
   ): Promise<User> => {
@@ -320,27 +320,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         body: JSON.stringify(updateData),
       });
 
-      console.log("Backend response:", response); // Debug log
+      console.log("Backend response:", response);
 
-      // Check if response has success property or directly contains user
       if (response.success === false) {
         throw new Error(response.message || "Profile update failed");
       }
 
-      // Handle different response structures
-      const updatedUser = response.user || response;
-
-      if (!updatedUser) {
+      // Extract user data from response.data instead of using the whole response
+      const userData = response.data;
+      if (!userData) {
         throw new Error("No user data returned from server");
       }
 
       // Ensure the user object has both _id and id
       const userWithId = {
-        ...updatedUser,
-        id: updatedUser._id || updatedUser.id,
+        ...userData, // Use userData instead of response
+        id: userData._id || userData.id,
       };
 
-      console.log("Processed user:", userWithId); // Debug log
+      console.log("Processed user:", userWithId);
 
       // Update local state and storage
       setUser(userWithId);
@@ -349,9 +347,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return userWithId;
     } catch (error) {
       console.error("Profile update error:", error);
-
-      // Don't logout on profile update errors
-      // Remove the automatic logout from apiRequest for this call
       const errorMessage =
         error instanceof Error ? error.message : "Profile update failed";
       throw new Error(errorMessage);

@@ -178,20 +178,11 @@ const Profile = () => {
       toast.success("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
-
-      // Check if it's an authentication error
-      if (
-        (error instanceof Error && error.message.includes("token")) ||
-        error.message.includes("unauthorized")
-      ) {
-        toast.error("Session expired. Please login again.");
-      } else {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to update profile. Please try again."
-        );
-      }
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update profile. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -200,19 +191,21 @@ const Profile = () => {
   async function onSubmitPassword(data: PasswordChangeValues) {
     setIsChangingPassword(true);
     try {
-      // Call the changePassword function from AuthContext
       await changePassword({
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
         confirmNewPassword: data.confirmPassword,
       });
 
-      console.log("Password changed successfully");
       passwordForm.reset();
       setIsChangingPassword(false);
+
+      // Minimal success log
+      console.log("Password changed successfully");
       toast.success("Password changed successfully!");
     } catch (error) {
-      console.error("Error changing password:", error);
+      // Error log for debugging (helpful in production)
+      console.error("Password change error:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -222,6 +215,7 @@ const Profile = () => {
       setIsChangingPassword(false);
     }
   }
+
   const handleAvatarUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
