@@ -59,7 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!response.ok) {
         const errorData = await response.json();
 
-        // If token is invalid/expired, logout
         if (response.status === 401) {
           console.warn("🔒 Token expired or invalid — logging out");
           logout();
@@ -301,7 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
-  // Updated to use the system_users endpoint for profile updates
+  // Updated updateProfile function in AuthContext
   const updateProfile = async (
     updateData: UpdateProfileData
   ): Promise<User> => {
@@ -311,25 +310,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("User not authenticated");
       }
 
-      const response: UpdateProfileResponse = await apiRequest(
-        `/system_users/${user.id}`,
-        {
-          method: "PUT",
-          body: JSON.stringify(updateData),
-        }
-      );
+      const userId = user._id || user.id;
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
 
-      if (!response.success) {
+      const response = await apiRequest(`/system_users/${userId}`, {
+        method: "PUT",
+        body: JSON.stringify(updateData),
+      });
+
+      console.log("Backend response:", response); // Debug log
+
+      // Check if response has success property or directly contains user
+      if (response.success === false) {
         throw new Error(response.message || "Profile update failed");
       }
 
-      // Update local state and storage
-      setUser(response.user);
-      localStorage.setItem("user", JSON.stringify(response.user));
+      // Handle different response structures
+      const updatedUser = response.user || response;
 
-      return response.user;
+      if (!updatedUser) {
+        throw new Error("No user data returned from server");
+      }
+
+      // Ensure the user object has both _id and id
+      const userWithId = {
+        ...updatedUser,
+        id: updatedUser._id || updatedUser.id,
+      };
+
+      console.log("Processed user:", userWithId); // Debug log
+
+      // Update local state and storage
+      setUser(userWithId);
+      localStorage.setItem("user", JSON.stringify(userWithId));
+
+      return userWithId;
     } catch (error) {
       console.error("Profile update error:", error);
+
+      // Don't logout on profile update errors
+      // Remove the automatic logout from apiRequest for this call
       const errorMessage =
         error instanceof Error ? error.message : "Profile update failed";
       throw new Error(errorMessage);
@@ -338,7 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Updated to use the system_users change-password endpoint
+  // Updated changePassword function in AuthContext
   const changePassword = async (
     passwordData: ChangePasswordData
   ): Promise<boolean> => {
@@ -348,13 +370,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("User not authenticated");
       }
 
+      // Use _id instead of id since MongoDB uses _id
+      const userId = user._id || user.id;
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
+
       // Frontend validation
       if (passwordData.newPassword.length < 6) {
         throw new Error("New password must be at least 6 characters long");
       }
 
       const response: ChangePasswordResponse = await apiRequest(
-        `/system_users/${user.id}/change-password`,
+        `/system_users/${userId}/change-password`,
         {
           method: "PATCH",
           body: JSON.stringify({

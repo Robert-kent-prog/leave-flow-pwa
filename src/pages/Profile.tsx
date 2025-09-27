@@ -169,16 +169,29 @@ const Profile = () => {
       // Call the updateProfile function from AuthContext
       const updatedUser = await updateProfile(data);
 
+      if (!updatedUser) {
+        throw new Error("No user data returned after update");
+      }
+
       console.log("Profile updated successfully:", updatedUser);
       setIsEditing(false);
       toast.success("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to update profile. Please try again."
-      );
+
+      // Check if it's an authentication error
+      if (
+        (error instanceof Error && error.message.includes("token")) ||
+        error.message.includes("unauthorized")
+      ) {
+        toast.error("Session expired. Please login again.");
+      } else {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update profile. Please try again."
+        );
+      }
     } finally {
       setIsLoading(false);
     }
