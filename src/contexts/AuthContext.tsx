@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               localStorage.removeItem("token");
             }
           } catch (parseError) {
-            console.error("Error parsing localStorage user:", parseError);
+            // console.error("Error parsing localStorage user:", parseError);
             localStorage.removeItem("user");
             localStorage.removeItem("token");
           }
@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             }
           } catch (error) {
-            console.error("Token verification failed:", error);
+            // console.error("Token verification failed:", error);
             if (!isValidUser(user)) {
               setUser(null);
               localStorage.removeItem("user");
@@ -183,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       navigate("/", { replace: true });
       return true;
     } catch (error) {
-      console.error("Login error:", error);
+      // console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Login failed";
       throw new Error(errorMessage);
@@ -264,7 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     } catch (error) {
-      console.error("Signup error:", error);
+      // console.error("Signup error:", error);
       let errorMessage = "Signup failed. Please try again.";
       if (error instanceof Error) {
         if (error.message.includes("already exists")) {
@@ -287,7 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await apiRequest("/auth/logout", { method: "POST" });
     } catch (error) {
-      console.error("Logout error:", error);
+      // console.error("Logout error:", error);
     } finally {
       setUser(null);
       localStorage.removeItem("user");
@@ -320,7 +320,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         body: JSON.stringify(updateData),
       });
 
-      console.log("Backend response:", response);
+      // console.log("Backend response:", response);
 
       if (response.success === false) {
         throw new Error(response.message || "Profile update failed");
@@ -338,15 +338,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         id: userData._id || userData.id,
       };
 
-      console.log("Processed user:", userWithId);
+      // console.log("Processed user:", userWithId);
 
-      // Update local state and storage
       setUser(userWithId);
       localStorage.setItem("user", JSON.stringify(userWithId));
 
       return userWithId;
     } catch (error) {
-      console.error("Profile update error:", error);
+      // console.error("Profile update error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Profile update failed";
       throw new Error(errorMessage);
@@ -393,7 +392,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return true;
     } catch (error) {
-      console.error("Password change error:", error);
+      // console.error("Password change error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Password change failed";
       throw new Error(errorMessage);
