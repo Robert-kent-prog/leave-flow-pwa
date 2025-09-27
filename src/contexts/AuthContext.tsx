@@ -227,9 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const signupResult = await signupResponse.json();
-      // console.log("Signup response:", signupResult);
 
-      // Check if signup was successful
       if (!signupResult.success) {
         throw new Error(signupResult.message || "Signup failed");
       }
