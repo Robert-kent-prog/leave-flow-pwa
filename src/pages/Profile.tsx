@@ -138,7 +138,7 @@ const Profile = () => {
       current: false,
     },
   ]);
-  const { user, updateProfile, changePassword } = useAuth(); // Import the functions from context
+  const { user, updateProfile, changePassword, deleteAccount } = useAuth(); // Import the functions from context
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -285,13 +285,24 @@ const Profile = () => {
 
   const handleDeleteAccount = async () => {
     try {
-      // Simulate API call - replace with actual account deletion
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Optional: Add confirmation dialog
+      if (
+        !window.confirm(
+          "Are you sure you want to delete your account? This action cannot be undone."
+        )
+      ) {
+        return;
+      }
+
+      await deleteAccount();
       toast.success("Account deleted successfully!");
-      // Redirect to login or home page after deletion
     } catch (error) {
       console.error("Error deleting account:", error);
-      toast.error("Failed to delete account. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete account. Please try again."
+      );
     }
   };
 

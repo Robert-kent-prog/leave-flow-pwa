@@ -18,9 +18,10 @@ export interface AuthContextType {
   signup: (userData: SignupData) => Promise<boolean>;
   logout: () => void;
   resetPassword: (email: string) => Promise<boolean>;
-  changePassword: (passwordData: ChangePasswordData) => Promise<boolean>; // Add this line
-  updateProfile: (updateData: UpdateProfileData) => Promise<User>; // Adjusted type
+  changePassword: (passwordData: ChangePasswordData) => Promise<boolean>;
+  updateProfile: (updateData: UpdateProfileData) => Promise<User>; 
   googleSignIn: () => void;
+  deleteAccount: () => Promise<boolean>; 
   isLoading: boolean;
 }
 

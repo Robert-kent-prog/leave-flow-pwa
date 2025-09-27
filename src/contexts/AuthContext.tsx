@@ -411,6 +411,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Add to your AuthContext.tsx
+  const deleteAccount = async (): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      const userId = user._id || user.id;
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
+
+      const response = await apiRequest(`/system_users/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || "Account deletion failed");
+      }
+
+      // Logout user after successful deletion
+      setUser(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+
+      navigate("/login", { replace: true });
+
+      return true;
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Account deletion failed";
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const contextValue: AuthContextType = {
     user,
     login,
@@ -419,6 +458,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     updateProfile,
     resetPassword,
     changePassword,
+    deleteAccount,
     googleSignIn,
     isLoading,
   };
