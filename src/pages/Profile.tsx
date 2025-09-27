@@ -36,6 +36,8 @@ import {
   LogOut,
   RefreshCw,
   Smartphone,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -107,6 +109,12 @@ const Profile = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+
+  // state variables for password visibility
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [activeSessions, setActiveSessions] = useState([
     {
       id: "1",
@@ -546,12 +554,32 @@ const Profile = () => {
                         <FormItem>
                           <FormLabel>Current Password</FormLabel>
                           <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Enter current password"
-                              {...field}
-                              disabled={isChangingPassword}
-                            />
+                            <div className="relative">
+                              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                              <Input
+                                type={showCurrentPassword ? "text" : "password"}
+                                placeholder="Enter current password"
+                                className="pl-10 pr-11"
+                                {...field}
+                                disabled={isChangingPassword}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() =>
+                                  setShowCurrentPassword(!showCurrentPassword)
+                                }
+                                disabled={isChangingPassword}
+                              >
+                                {showCurrentPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -564,12 +592,32 @@ const Profile = () => {
                         <FormItem>
                           <FormLabel>New Password</FormLabel>
                           <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Enter new password"
-                              {...field}
-                              disabled={isChangingPassword}
-                            />
+                            <div className="relative">
+                              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                              <Input
+                                type={showNewPassword ? "text" : "password"}
+                                placeholder="Enter new password"
+                                className="pl-10 pr-11"
+                                {...field}
+                                disabled={isChangingPassword}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() =>
+                                  setShowNewPassword(!showNewPassword)
+                                }
+                                disabled={isChangingPassword}
+                              >
+                                {showNewPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -582,12 +630,32 @@ const Profile = () => {
                         <FormItem>
                           <FormLabel>Confirm New Password</FormLabel>
                           <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Confirm new password"
-                              {...field}
-                              disabled={isChangingPassword}
-                            />
+                            <div className="relative">
+                              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                              <Input
+                                type={showConfirmPassword ? "text" : "password"}
+                                placeholder="Confirm new password"
+                                className="pl-10 pr-11"
+                                {...field}
+                                disabled={isChangingPassword}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() =>
+                                  setShowConfirmPassword(!showConfirmPassword)
+                                }
+                                disabled={isChangingPassword}
+                              >
+                                {showConfirmPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -610,7 +678,6 @@ const Profile = () => {
                 </Form>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
