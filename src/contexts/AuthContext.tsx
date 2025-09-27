@@ -5,6 +5,8 @@ import {
   AuthContextType,
   User,
   SignupData,
+  UpdateProfileData,
+  ChangePasswordData,
 } from "./AuthContextInstance";
 
 interface LoginResponse {
@@ -18,23 +20,10 @@ interface VerifyTokenResponse {
   user: User;
 }
 
-interface UpdateProfileData {
-  username?: string;
-  email?: string;
-  phone?: string;
-  staffId?: string;
-}
-
 interface UpdateProfileResponse {
   success: boolean;
   message: string;
   user: User;
-}
-
-interface ChangePasswordData {
-  currentPassword: string;
-  newPassword: string;
-  confirmNewPassword: string;
 }
 
 interface ChangePasswordResponse {
@@ -73,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // If token is invalid/expired, logout
         if (response.status === 401) {
           console.warn("🔒 Token expired or invalid — logging out");
-          logout(); // assuming logout is available here
+          logout();
         }
 
         throw new Error(
@@ -87,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw error;
     }
   };
+
   // Helper: Validate if user object is valid
   const isValidUser = (user: unknown): user is User => {
     return (
@@ -97,12 +87,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       "username" in user
     );
   };
+
   // Check if user is logged in on app load
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         const userData = localStorage.getItem("user");
         const token = localStorage.getItem("token");
+
         // First, try to set user from localStorage immediately for fast UI
         if (userData) {
           try {
@@ -131,7 +123,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               setUser(response.user);
               localStorage.setItem("user", JSON.stringify(response.user));
             } else {
-              // Keep existing user if valid, else log out
               if (!isValidUser(user)) {
                 setUser(null);
                 localStorage.removeItem("user");
@@ -140,7 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           } catch (error) {
             console.error("Token verification failed:", error);
-            // Network error or backend down — keep using localStorage data if valid
             if (!isValidUser(user)) {
               setUser(null);
               localStorage.removeItem("user");
@@ -191,7 +181,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("token", data.accessToken);
 
-      // Navigate to dashboard
       navigate("/", { replace: true });
       return true;
     } catch (error) {
@@ -204,15 +193,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Enhanced signup function with better error handling
   const signup = async (userData: SignupData): Promise<boolean> => {
     setIsLoading(true);
     try {
       const { confirmPassword, ...signupData } = userData;
 
-      // console.log("Sending signup data:", signupData);
-
-      // Step 1: Create user account
+      // Create system user account
       const signupResponse = await fetch(`${API_BASE_URL}/system_users`, {
         method: "POST",
         headers: {
@@ -232,54 +218,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error(signupResult.message || "Signup failed");
       }
 
-      // console.log("User created successfully, attempting auto-login...");
-
+      // Auto-login with email
       const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          identifier: userData.email, // Try email first
+          identifier: userData.email,
           password: userData.password,
         }),
       });
 
       if (loginResponse.ok) {
         const loginData: LoginResponse = await loginResponse.json();
-        // console.log("Auto-login successful:", loginData);
-
-        // Auto-authenticate the user
         setUser(loginData.user);
         localStorage.setItem("user", JSON.stringify(loginData.user));
         localStorage.setItem("token", loginData.accessToken);
-
         navigate("/", { replace: true });
         return true;
       } else {
+        // Fallback to username login
         const loginResponse2 = await fetch(`${API_BASE_URL}/auth/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            identifier: userData.username, // Try username
+            identifier: userData.username,
             password: userData.password,
           }),
         });
 
         if (loginResponse2.ok) {
           const loginData: LoginResponse = await loginResponse2.json();
-          // console.log("Auto-login with username successful:", loginData);
-
           setUser(loginData.user);
           localStorage.setItem("user", JSON.stringify(loginData.user));
           localStorage.setItem("token", loginData.accessToken);
-
           navigate("/", { replace: true });
           return true;
         } else {
-          // Both login attempts failed
           const errorData = await loginResponse2.json();
           throw new Error(
             `Signup successful but auto-login failed: ${errorData.message}`
@@ -288,8 +266,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (error) {
       console.error("Signup error:", error);
-
-      // Provide user-friendly error messages
       let errorMessage = "Signup failed. Please try again.";
       if (error instanceof Error) {
         if (error.message.includes("already exists")) {
@@ -297,26 +273,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             "An account with this email or username already exists.";
         } else if (error.message.includes("auto-login failed")) {
           errorMessage = "Account created successfully! Please login manually.";
-          // Optionally navigate to login page
           setTimeout(() => navigate("/login"), 2000);
         } else {
           errorMessage = error.message;
         }
       }
-
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
+
   const logout = async (): Promise<void> => {
     try {
-      // Call backend logout endpoint if needed
       await apiRequest("/auth/logout", { method: "POST" });
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      // Always clear frontend state
       setUser(null);
       localStorage.removeItem("user");
       localStorage.removeItem("token");
@@ -328,13 +301,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
+  // Updated to use the system_users endpoint for profile updates
   const updateProfile = async (
     updateData: UpdateProfileData
   ): Promise<User> => {
     setIsLoading(true);
     try {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
       const response: UpdateProfileResponse = await apiRequest(
-        "/auth/profile",
+        `/system_users/${user.id}`,
         {
           method: "PUT",
           body: JSON.stringify(updateData),
@@ -360,24 +338,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Updated to use the system_users change-password endpoint
   const changePassword = async (
     passwordData: ChangePasswordData
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Frontend validation
-      if (passwordData.newPassword !== passwordData.confirmNewPassword) {
-        throw new Error("New passwords do not match");
+      if (!user) {
+        throw new Error("User not authenticated");
       }
 
+      // Frontend validation
       if (passwordData.newPassword.length < 6) {
         throw new Error("New password must be at least 6 characters long");
       }
 
       const response: ChangePasswordResponse = await apiRequest(
-        "/auth/change-password",
+        `/system_users/${user.id}/change-password`,
         {
-          method: "POST",
+          method: "PATCH",
           body: JSON.stringify({
             currentPassword: passwordData.currentPassword,
             newPassword: passwordData.newPassword,
@@ -402,12 +381,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const resetPassword = async (email: string): Promise<boolean> => {
     try {
-      // Add logic to reset the password, e.g., API call
       console.log(`Resetting password for email: ${email}`);
-      return true; // Return true if successful
+      return true;
     } catch (error) {
       console.error("Error resetting password:", error);
-      return false; // Return false if there is an error
+      return false;
     }
   };
 
