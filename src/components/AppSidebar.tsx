@@ -39,7 +39,9 @@ export function AppSidebar() {
     { title: "Employees", url: "/employees", icon: Users },
     { title: "Analytics", url: "/analytics", icon: BarChart3 },
     { title: "Company Leaves", url: "/company-planner", icon: Calendar },
-    // { title: "Team Leaves", url: "/calendar", icon: Calendar },
+    // { title: "Leave Schedule", url: "/schedule", icon: Calendar },
+    // { title: "Employees", url: "/newemployees", icon: Calendar },
+    // { title: "New Leave schedule", url: "/leave-schedule", icon: Calendar },
   ];
 
   const { state } = useSidebar();

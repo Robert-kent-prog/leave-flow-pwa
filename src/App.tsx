@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import LeaveSchedule from "./pages/LeaveSchedule";
 import NotFound from "./pages/NotFound";
+import NewLeaveShedule from "./pages/NewLeaveSchedule";
 import LeaveRequest from "./pages/LeaveRequest";
 import LeaveHistory from "./pages/LeaveHistory";
 import NewEmployees from "./pages/NewEmployees";
@@ -73,6 +74,7 @@ const App = () => (
                 <Route path="history" element={<LeaveHistory />} />
                 <Route path="analytics" element={<Reports />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="leave-schedule" element={<NewLeaveShedule />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="notifications" element={<NotificationPage />} />
               </Route>

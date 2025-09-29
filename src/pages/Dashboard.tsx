@@ -206,10 +206,10 @@ export default function Dashboard() {
             <Button
               variant="outline"
               className="w-full justify-start h-11"
-              onClick={() => navigate("/reports")}
+              onClick={() => navigate("/analytics")}
             >
               <TrendingUp className="mr-3 h-4 w-4" />
-              Reports
+              Analytics
             </Button>
           </CardContent>
         </Card>
