@@ -58,8 +58,8 @@ export interface LeaveRequestData {
   dutyStation: string;
   phone: string;
   leaveType: string;
-  startDate: Date;    // Input uses Date
-  endDate: Date;
+    startDate?: Date | string;
+    endDate?: Date | string;
   reason: string;
   createdBy: string;
 }
@@ -73,8 +73,8 @@ export interface LeaveRequestResponse {
     dutyStation: string;
     phone: string;
     leaveType: string;
-    startDate: string; // API returns string (ISO date)
-    endDate: string;
+    startDate?: Date | string;
+    endDate?: Date | string;
     reason: string;
     days: number;
     status: 'pending' | 'approved' | 'rejected' | 'cancelled';

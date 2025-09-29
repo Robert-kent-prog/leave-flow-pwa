@@ -25,6 +25,7 @@ import PasswordReset from "./pages/PasswordReset";
 import { LeavePlanner } from "./components/LeavePlanner/LeavePlanner";
 import { CompanyLeavePlanner } from "./components/CompanyLeavePlanner/CompanyLeavePlanner";
 import { Permission } from "./types/leave";
+import { ApiProvider } from "./contexts/ApiProvider";
 
 const queryClient = new QueryClient();
 
@@ -42,51 +43,49 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/forgot-password" element={<PasswordReset />} />
+            <ApiProvider>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<PasswordReset />} />
 
-              {/* Protected routes */}
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Dashboard />} />
-                <Route path="employees" element={<NewEmployees />} />
-                <Route path="schedule" element={<LeaveSchedule />} />
-
-                <Route path="calendar" element={<LeavePlanner />} />
-
+                {/* Protected routes */}
                 <Route
-                  path="company-planner"
+                  path="/"
                   element={
-                    <CompanyLeavePlanner permissions={tempPermissions} />
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
                   }
-                />
+                >
+                  <Route index element={<Dashboard />} />
+                  <Route path="employees" element={<NewEmployees />} />
+                  <Route path="schedule" element={<LeaveSchedule />} />
+                  <Route path="calendar" element={<LeavePlanner />} />
+                  <Route
+                    path="company-planner"
+                    element={
+                      <CompanyLeavePlanner permissions={tempPermissions} />
+                    }
+                  />
+                  <Route path="request" element={<LeaveRequest />} />
+                  <Route path="history" element={<LeaveHistory />} />
+                  <Route path="analytics" element={<Reports />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="leave-schedule" element={<NewLeaveShedule />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="notifications" element={<NotificationPage />} />
+                </Route>
 
-                <Route path="request" element={<LeaveRequest />} />
-                <Route path="history" element={<LeaveHistory />} />
-                <Route path="analytics" element={<Reports />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="leave-schedule" element={<NewLeaveShedule />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="notifications" element={<NotificationPage />} />
-              </Route>
-
-              {/* Catch all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* Catch all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ApiProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
 );
-
 export default App;

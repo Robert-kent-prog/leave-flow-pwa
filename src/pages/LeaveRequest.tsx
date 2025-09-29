@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Calendar, FileText, Send, User } from "lucide-react";
+import { useState, useContext } from "react";
+import { Calendar, FileText, Send, User, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,8 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { AuthContext } from "@/contexts/AuthContextInstance";
+import { ApiContext } from "@/contexts/AuthContextInstance";
 
 export default function LeaveRequest() {
   const [formData, setFormData] = useState({
@@ -37,6 +39,8 @@ export default function LeaveRequest() {
   });
 
   const { toast } = useToast();
+  const { user } = useContext(AuthContext);
+  const { createLeaveRequest, isLoading } = useContext(ApiContext)!;
 
   const calculateLeaveDays = () => {
     if (!formData.startDate || !formData.endDate) return 0;
@@ -55,7 +59,7 @@ export default function LeaveRequest() {
     return days;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.startDate || !formData.endDate) {
@@ -76,24 +80,100 @@ export default function LeaveRequest() {
       return;
     }
 
-    toast({
-      title: "Leave Request Submitted",
-      description: `Your leave request for ${calculateLeaveDays()} working days has been submitted for approval.`,
-    });
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to submit a leave request.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Reset form
-    setFormData({
-      employeeName: "",
-      pno: "",
-      designation: "",
-      dutyStation: "",
-      phone: "",
-      leaveType: "",
-      applicationDate: new Date(),
-      startDate: undefined,
-      endDate: undefined,
-      reason: "",
-    });
+    // Validate all required fields
+    if (
+      !formData.employeeName ||
+      !formData.pno ||
+      !formData.designation ||
+      !formData.dutyStation ||
+      !formData.phone ||
+      !formData.leaveType ||
+      !formData.reason
+    ) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Format dates as ISO strings for the API
+      const leaveRequestData = {
+        employeeName: formData.employeeName,
+        pno: formData.pno,
+        designation: formData.designation,
+        dutyStation: formData.dutyStation,
+        phone: formData.phone,
+        leaveType: formData.leaveType,
+        startDate: formData.startDate.toISOString(), // Convert to ISO string
+        endDate: formData.endDate.toISOString(), // Convert to ISO string
+        reason: formData.reason,
+        createdBy: user._id,
+        applicationDate: new Date().toISOString(), // Add application date
+      };
+
+      console.log("Submitting leave request:", leaveRequestData); // Debug log
+
+      const response = await createLeaveRequest(leaveRequestData);
+
+      toast({
+        title: "Leave Request Submitted",
+        description: `Your leave request for ${calculateLeaveDays()} working days has been submitted for approval.`,
+      });
+
+      // Reset form
+      setFormData({
+        employeeName: "",
+        pno: "",
+        designation: "",
+        dutyStation: "",
+        phone: "",
+        leaveType: "",
+        applicationDate: new Date(),
+        startDate: undefined,
+        endDate: undefined,
+        reason: "",
+      });
+    } catch (error) {
+      console.error("Error submitting leave request:", error);
+
+      let errorMessage = "Failed to submit leave request";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      }
+
+      toast({
+        title: "Submission Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+  // Auto-fill employee data if user is logged in and has staffId
+  const handlePnoChange = (pno: string) => {
+    setFormData((prev) => ({ ...prev, pno }));
+
+    // If user has staffId and it matches the entered PNO, auto-fill their details
+    if (user?.staffId && user.staffId === pno) {
+      setFormData((prev) => ({
+        ...prev,
+        employeeName: user.username || "",
+        // You can add more auto-fill logic here based on your user data structure
+      }));
+    }
   };
 
   return (
@@ -137,6 +217,7 @@ export default function LeaveRequest() {
                           employeeName: e.target.value,
                         })
                       }
+                      placeholder="Enter your full name"
                       required
                     />
                   </div>
@@ -145,9 +226,8 @@ export default function LeaveRequest() {
                     <Input
                       id="pno"
                       value={formData.pno}
-                      onChange={(e) =>
-                        setFormData({ ...formData, pno: e.target.value })
-                      }
+                      onChange={(e) => handlePnoChange(e.target.value)}
+                      placeholder="Enter your staff number"
                       required
                     />
                   </div>
@@ -162,6 +242,7 @@ export default function LeaveRequest() {
                           designation: e.target.value,
                         })
                       }
+                      placeholder="Enter your job title"
                       required
                     />
                   </div>
@@ -176,6 +257,7 @@ export default function LeaveRequest() {
                           dutyStation: e.target.value,
                         })
                       }
+                      placeholder="Enter your work location"
                       required
                     />
                   </div>
@@ -187,6 +269,7 @@ export default function LeaveRequest() {
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
                       }
+                      placeholder="Enter your phone number"
                       required
                     />
                   </div>
@@ -230,6 +313,7 @@ export default function LeaveRequest() {
                     <Input
                       value={format(formData.applicationDate, "PPP")}
                       disabled
+                      placeholder="Today's date"
                     />
                   </div>
                   <div className="space-y-2">
@@ -311,9 +395,18 @@ export default function LeaveRequest() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full">
-                <Send className="mr-2 h-4 w-4" />
-                Submit Leave Request
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Submit Leave Request
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>
