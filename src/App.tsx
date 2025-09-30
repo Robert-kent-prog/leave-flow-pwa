@@ -12,6 +12,7 @@ import NewLeaveShedule from "./pages/NewLeaveSchedule";
 import LeaveRequest from "./pages/LeaveRequest";
 import LeaveHistory from "./pages/LeaveHistory";
 import NewEmployees from "./pages/NewEmployees";
+import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -71,7 +72,8 @@ const App = () => (
                   />
                   <Route path="request" element={<LeaveRequest />} />
                   <Route path="history" element={<LeaveHistory />} />
-                  <Route path="analytics" element={<Reports />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="analytics" element={<Analytics />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="leave-schedule" element={<NewLeaveShedule />} />
                   <Route path="settings" element={<Settings />} />

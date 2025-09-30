@@ -7,6 +7,7 @@ import {
   Settings,
   Home,
   Plus,
+  ClipboardList,
   Clock,
   X,
   ChevronLeft,
@@ -32,11 +33,12 @@ export function AppSidebar() {
   const mainItems = [
     { title: "Dashboard", url: "/", icon: Home },
     { title: "New Leave Request", url: "/request", icon: Plus },
-    { title: "Leave History & Reports", url: "/history", icon: Clock },
+    { title: "Leave History ", url: "/history", icon: Clock },
   ];
 
   const managementItems = [
     { title: "Employees", url: "/employees", icon: Users },
+    { title: "Reports", url: "/reports", icon: ClipboardList },
     { title: "Analytics", url: "/analytics", icon: BarChart3 },
     { title: "Company Leaves", url: "/company-planner", icon: Calendar },
     // { title: "Leave Schedule", url: "/schedule", icon: Calendar },
