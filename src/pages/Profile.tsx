@@ -120,7 +120,7 @@ const Profile = () => {
       id: "1",
       device: "Chrome on Windows",
       location: "HomaBay, Kenya",
-      lastActive: "2 hours ago",
+      lastActive: "Active Now",
       current: true,
     },
     {
