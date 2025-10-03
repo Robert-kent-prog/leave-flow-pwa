@@ -233,32 +233,6 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Shield className="mr-2 h-5 w-5" />
-              Security
-            </CardTitle>
-            <CardDescription>Manage your security settings.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="two-factor">Two-Factor Authentication</Label>
-                <p className="text-sm text-muted-foreground">
-                  Add an extra layer of security to your account
-                </p>
-              </div>
-              <Button variant="outline" size="sm">
-                Enable
-              </Button>
-            </div>
-            {/* <div className="pt-4">
-              <Button variant="outline">Change Password</Button>
-            </div> */}
-          </CardContent>
-        </Card>
-
         <div className="flex justify-end">
           <Button onClick={handleSaveSettings}>
             <Save className="mr-2 h-4 w-4" />
