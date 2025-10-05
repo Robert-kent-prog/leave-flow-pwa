@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LeaveRequest {
   _id: string;
@@ -53,7 +54,10 @@ export default function LeaveHistory() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const { user } = useAuth();
+
   useEffect(() => {
+    console.log("Authenticated user:", user);
     fetchLeaveRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -152,7 +156,7 @@ export default function LeaveHistory() {
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
-      const response = await fetch(`${API_BASE_URL}/leaves/`, {
+      const response = await fetch(`${API_BASE_URL}/leaves/${id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -187,11 +191,25 @@ export default function LeaveHistory() {
 
   const handleReject = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/leaves/`, {
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
+      const response = await fetch(`${API_BASE_URL}/leaves/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
         body: JSON.stringify({ status: "rejected" }),
       });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Unauthorized - Please login again");
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       if (response.ok) {
         toast({
