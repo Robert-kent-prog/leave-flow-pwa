@@ -93,7 +93,14 @@ export default function LeaveReports() {
   // Apply filters whenever filters or data change
   useEffect(() => {
     applyFilters();
-  }, []);
+  }, [
+    leaveRecords,
+    searchTerm,
+    statusFilter,
+    typeFilter,
+    selectedYear,
+    selectedMonth,
+  ]);
 
   const fetchLeaveRecords = async () => {
     setLoading(true);
@@ -216,9 +223,11 @@ export default function LeaveReports() {
       const margin = 15;
       let currentY = margin;
 
-      // Store page numbers for footer
-      let pageCount = 1;
-      const addFooter = () => {
+      // Store page numbers for footer - use let instead of tracking manually
+      let currentPage = 1;
+      let totalPages = 1; // We'll update this as we go
+
+      const addFooter = (pageNumber: number, isLastPage: boolean = false) => {
         const footerY = pageHeight - 10;
         doc.setDrawColor(150, 150, 150);
         doc.line(margin, footerY, pageWidth - margin, footerY);
@@ -231,12 +240,10 @@ export default function LeaveReports() {
         const confidentialX = (pageWidth - confidentialWidth) / 2;
         doc.text(confidentialText, confidentialX, footerY + 5);
 
-        // Right align page number
-        const pageText = `Page ${pageCount}`;
+        // Right align page number - use the provided pageNumber
+        const pageText = `Page ${pageNumber}`;
         const pageWidthText = doc.getTextWidth(pageText);
         doc.text(pageText, pageWidth - margin - pageWidthText, footerY + 5);
-
-        pageCount++;
       };
 
       // Add header - manually center each line
@@ -325,10 +332,14 @@ export default function LeaveReports() {
       doc.setFontSize(9);
 
       filteredRecords.forEach((record, index) => {
-        // Check if we need a new page
-        if (currentY + rowHeight > pageHeight - 20) {
-          addFooter(); // Add footer to current page
+        // Check if we need a new page - FIXED: Use proper landscape page height
+        if (currentY + rowHeight > pageHeight - 25) {
+          // Add footer to current page BEFORE adding new page
+          addFooter(currentPage);
+
           doc.addPage("landscape");
+          currentPage++;
+          totalPages = currentPage; // Update total pages
           currentY = margin;
 
           // Redraw header on new page
@@ -413,9 +424,12 @@ export default function LeaveReports() {
         currentY += rowHeight;
       });
 
-      // Add summary section
+      // Add summary section - FIXED: Better space checking for landscape
+      const summaryHeight = 60; // Approximate height needed for summary section
       const summaryY = currentY + 15;
-      if (summaryY < pageHeight - 40) {
+
+      // Check if there's enough space for summary on current page
+      if (summaryY + summaryHeight < pageHeight - 25) {
         doc.setDrawColor(200, 200, 200);
         doc.line(margin, summaryY - 5, pageWidth - margin, summaryY - 5);
 
@@ -443,10 +457,16 @@ export default function LeaveReports() {
         doc.text(`Pending Leaves: ${pendingCount}`, margin, summaryY + 30);
         doc.text(`Rejected Leaves: ${rejectedCount}`, margin, summaryY + 40);
         doc.text(`Total Leave Days: ${totalDays}`, margin, summaryY + 50);
+
+        // Add footer after summary on same page (this is the last page)
+        addFooter(currentPage, true);
       } else {
         // If there's no space, add a new page for the summary
-        addFooter();
+        addFooter(currentPage); // Footer for current page with table
+
         doc.addPage("landscape");
+        currentPage++;
+        totalPages = currentPage;
         currentY = margin;
 
         doc.setFontSize(12);
@@ -473,10 +493,10 @@ export default function LeaveReports() {
         doc.text(`Pending Leaves: ${pendingCount}`, margin, currentY + 30);
         doc.text(`Rejected Leaves: ${rejectedCount}`, margin, currentY + 40);
         doc.text(`Total Leave Days: ${totalDays}`, margin, currentY + 50);
-      }
 
-      // Add footer to the last page
-      addFooter();
+        // Add footer to summary page (this is the last page)
+        addFooter(currentPage, true);
+      }
 
       // Generate filename with filters
       const filename = `leave-report-${selectedYear}-${
@@ -500,7 +520,6 @@ export default function LeaveReports() {
       setExporting(false);
     }
   };
-
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
@@ -544,7 +563,7 @@ export default function LeaveReports() {
             Leave Reports
           </h1>
           <p className="text-muted-foreground">
-            Generate comprehensive leave reports
+            Generate comprehensive leave reports and analytics
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
