@@ -218,6 +218,14 @@ export default function LeaveHistory() {
   };
 
   const handleQuickApprove = async (id: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "User information not available",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
