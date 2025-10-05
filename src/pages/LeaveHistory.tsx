@@ -85,6 +85,7 @@ export default function LeaveHistory() {
 
   useEffect(() => {
     fetchLeaveRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const API_BASE_URL = "http://10.6.224.235:9000/api";
@@ -138,7 +139,14 @@ export default function LeaveHistory() {
   };
 
   const handleStatusUpdate = async () => {
-    if (!modal.leaveRequest) return;
+    if (!modal.leaveRequest || !user) {
+      toast({
+        title: "Error",
+        description: "User information not available. Please login again.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const token =
@@ -154,6 +162,11 @@ export default function LeaveHistory() {
         status: selectedStatus,
         reviewedBy: user._id,
       };
+
+      // Only add reviewedBy if user exists and has _id
+      if (user && user._id) {
+        updateData.reviewedBy = user._id;
+      }
 
       if (comment.trim()) {
         updateData.comments = comment;
