@@ -149,11 +149,25 @@ export default function LeaveHistory() {
 
   const handleApprove = async (id: string) => {
     try {
-      const response = await fetch(`/api/leaves/${id}`, {
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
+      const response = await fetch(`${API_BASE_URL}/leaves/`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
         body: JSON.stringify({ status: "approved" }),
       });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Unauthorized - Please login again");
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       if (response.ok) {
         toast({
@@ -173,7 +187,7 @@ export default function LeaveHistory() {
 
   const handleReject = async (id: string) => {
     try {
-      const response = await fetch(`/api/leaves/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/leaves/`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "rejected" }),
