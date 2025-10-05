@@ -55,17 +55,54 @@ export default function LeaveHistory() {
 
   useEffect(() => {
     fetchLeaveRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Use relative URL for production, absolute for development
+  const API_BASE_URL = "http://10.6.224.235:9000/api";
 
   const fetchLeaveRequests = async () => {
     try {
-      const response = await fetch("/api/leaves");
+      setLoading(true);
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
+      const response = await fetch(`${API_BASE_URL}/leaves/`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies if using session-based auth
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Unauthorized - Please login again");
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       setLeaveRequests(data);
     } catch (error) {
+      console.error("Error fetching Leave Requests:", error);
+
+      let errorMessage = "Failed to fetch Leave Requests";
+
+      if (
+        error.message.includes("Failed to fetch") ||
+        error.message.includes("ERR_CONNECTION_REFUSED")
+      ) {
+        errorMessage =
+          "Cannot connect to server. Please make sure the backend is running.";
+      } else if (error.message.includes("Unauthorized")) {
+        errorMessage = "Please login again to access Leave Request data.";
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to fetch leave requests",
+        title: "Connection Error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

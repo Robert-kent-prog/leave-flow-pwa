@@ -54,6 +54,7 @@ export default function Employees() {
 
   useEffect(() => {
     fetchEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Use relative URL for production, absolute for development
