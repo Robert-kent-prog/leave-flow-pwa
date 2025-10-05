@@ -544,7 +544,7 @@ export default function LeaveReports() {
             Leave Reports
           </h1>
           <p className="text-muted-foreground">
-            Generate comprehensive leave reports and analytics
+            Generate comprehensive leave reports
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
