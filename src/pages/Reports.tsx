@@ -234,7 +234,6 @@ export default function LeaveReports() {
         doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
 
-        // Center the confidential text manually
         const confidentialText = "Confidential - For Internal Use Only";
         const confidentialWidth = doc.getTextWidth(confidentialText);
         const confidentialX = (pageWidth - confidentialWidth) / 2;
