@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, User, Mail, Phone, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,11 +46,31 @@ const formatDate = (dateString: string) => {
   }
 };
 
+// Debounce hook
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  // Use debounced search term with 300ms delay
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     fetchEmployees();
@@ -115,13 +135,19 @@ export default function Employees() {
     fetchEmployees();
   };
 
-  // Filter employees based on search term
+  // Filter employees based on debounced search term
   const filteredEmployees = employees.filter(
     (employee) =>
-      employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.pno.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.dutyStation.toLowerCase().includes(searchTerm.toLowerCase())
+      employee.employeeName
+        .toLowerCase()
+        .includes(debouncedSearchTerm.toLowerCase()) ||
+      employee.pno.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      employee.designation
+        .toLowerCase()
+        .includes(debouncedSearchTerm.toLowerCase()) ||
+      employee.dutyStation
+        .toLowerCase()
+        .includes(debouncedSearchTerm.toLowerCase())
   );
 
   const getStatusBadge = (status: Employee["currentStatus"]) => {
@@ -273,7 +299,7 @@ export default function Employees() {
             <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">No employees found</p>
             <p className="text-sm text-muted-foreground mt-2">
-              {searchTerm
+              {debouncedSearchTerm
                 ? "Try adjusting your search terms"
                 : "Employees will appear here after their first leave request is submitted"}
             </p>
