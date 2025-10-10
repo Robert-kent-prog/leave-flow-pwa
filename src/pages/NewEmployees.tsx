@@ -4,6 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Employee {
   _id: string;
@@ -209,8 +217,74 @@ export default function Employees() {
         </CardContent>
       </Card>
 
-      {/* Employee Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>P/No</TableHead>
+                  <TableHead>Designation</TableHead>
+                  <TableHead>Duty Station</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Leave Balance</TableHead>
+                  <TableHead>Used Days</TableHead>
+                  <TableHead>Last Leave</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredEmployees.map((employee) => (
+                  <TableRow key={employee._id}>
+                    <TableCell className="font-medium">
+                      {employee.employeeName}
+                    </TableCell>
+                    <TableCell>{employee.pno}</TableCell>
+                    <TableCell>{employee.designation}</TableCell>
+                    <TableCell>{employee.dutyStation}</TableCell>
+                    <TableCell>{employee.phone}</TableCell>
+                    <TableCell>
+                      {getStatusBadge(employee.currentStatus)}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {employee.leaveBalance} days
+                    </TableCell>
+                    <TableCell>{employee.totalUsedLeaveDays} days</TableCell>
+                    <TableCell>
+                      {employee.lastLeave ? (
+                        <div className="text-xs">
+                          <div className="capitalize">
+                            {employee.lastLeave.type}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {formatDate(employee.lastLeave.startDate)} -{" "}
+                            {formatDate(employee.lastLeave.endDate)}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {employee.lastLeave.days} days •{" "}
+                            <span className="capitalize">
+                              {employee.lastLeave.status}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          No leave history
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredEmployees.map((employee) => (
           <Card
             key={employee._id}
