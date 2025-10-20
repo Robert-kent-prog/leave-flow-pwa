@@ -41,7 +41,7 @@ export function AppSidebar() {
     { title: "Reports", url: "/reports", icon: ClipboardList },
     { title: "Analytics", url: "/analytics", icon: BarChart3 },
     { title: "Company Leaves", url: "/company-planner", icon: Calendar },
-    // { title: "Leave Schedule", url: "/schedule", icon: Calendar },
+    { title: "Leave Schedule", url: "/calendar", icon: Calendar },
     // { title: "Employees", url: "/newemployees", icon: Calendar },
     // { title: "New Leave schedule", url: "/leave-schedule", icon: Calendar },
   ];

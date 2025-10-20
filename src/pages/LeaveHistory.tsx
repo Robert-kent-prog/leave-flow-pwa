@@ -88,7 +88,7 @@ export default function LeaveHistory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const API_BASE_URL = "http://10.6.224.235:9000/api";
+  const API_BASE_URL = "http://10.6.114.106:9000/api";
 
   const fetchLeaveRequests = async () => {
     try {
