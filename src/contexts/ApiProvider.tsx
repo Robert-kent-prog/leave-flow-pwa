@@ -9,7 +9,7 @@ import {
   DeleteResponse,
 } from "./AuthContextInstance";
 
-const API_BASE_URL = "http://10.6.114.106:9000/api";
+const API_BASE_URL = "http://10.8.29.245:9000/api";
 
 export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
   children,

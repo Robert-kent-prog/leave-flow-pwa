@@ -27,13 +27,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useRef } from "react";
-import { useMobile } from "@/hooks/useMobile";
+import { useIsMobile } from "@/hooks/use-mobile"; // Updated import
 
 export function AppSidebar() {
   const mainItems = [
     { title: "Dashboard", url: "/", icon: Home },
     { title: "New Leave Request", url: "/request", icon: Plus },
-    { title: "Leave History ", url: "/history", icon: Clock },
+    { title: "Leave History", url: "/history", icon: Clock },
   ];
 
   const managementItems = [
@@ -42,14 +42,12 @@ export function AppSidebar() {
     { title: "Analytics", url: "/analytics", icon: BarChart3 },
     { title: "Company Leaves", url: "/company-planner", icon: Calendar },
     { title: "Leave Schedule", url: "/calendar", icon: Calendar },
-    // { title: "Employees", url: "/newemployees", icon: Calendar },
-    // { title: "New Leave schedule", url: "/leave-schedule", icon: Calendar },
   ];
 
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";
-  const isMobile = useMobile();
+  const isMobile = useIsMobile(); // Now using the proper hook
   const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
 
   const closeSidebar = () => {
