@@ -8,6 +8,7 @@ import {
   UpdateProfileData,
   ChangePasswordData,
 } from "./AuthContextInstance";
+import { apiFetch, clearStoredAuth } from "@/lib/api";
 
 interface LoginResponse {
   user: User;
@@ -23,7 +24,7 @@ interface VerifyTokenResponse {
 interface UpdateProfileResponse {
   success: boolean;
   message: string;
-  user: User;
+  data: User;
 }
 
 interface ChangePasswordResponse {
@@ -31,7 +32,11 @@ interface ChangePasswordResponse {
   message: string;
 }
 
-const API_BASE_URL = "http://10.8.29.245:9000/api";
+interface SignupResponse {
+  success: boolean;
+  message: string;
+  data: User;
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -40,100 +45,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Helper function for authenticated API calls
-  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem("token");
+  const normalizeUser = (value: User): User => ({
+    ...value,
+    id: value.id || value._id,
+  });
 
-    const config: RequestInit = {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
+  const apiRequest = async <T = unknown,>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> => {
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      return await apiFetch<T>(endpoint, options);
+    } catch (error) {
+      const status =
+        error instanceof Error && "status" in error
+          ? Number(error.status)
+          : undefined;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-
-        if (response.status === 401) {
-          console.warn("🔒 Token expired or invalid — logging out");
-          logout();
-        }
-
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
+      if (status === 401 || status === 403) {
+        clearStoredAuth();
+        setUser(null);
       }
 
-      return await response.json();
-    } catch (error) {
       console.error("API request failed:", error);
       throw error;
     }
   };
 
-  // Helper: Validate if user object is valid
   const isValidUser = (user: unknown): user is User => {
     return (
       typeof user === "object" &&
       user !== null &&
       "_id" in user &&
       "email" in user &&
-      "username" in user
+      "username" in user &&
+      "role" in user
     );
   };
 
-  // Check if user is logged in on app load
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         const userData = localStorage.getItem("user");
         const token = localStorage.getItem("token");
 
-        // First, try to set user from localStorage immediately for fast UI
         if (userData) {
           try {
             const parsedUser = JSON.parse(userData);
             if (isValidUser(parsedUser)) {
-              setUser(parsedUser);
+              setUser(normalizeUser(parsedUser));
             } else {
-              localStorage.removeItem("user");
-              localStorage.removeItem("token");
+              clearStoredAuth();
             }
           } catch (parseError) {
-            // console.error("Error parsing localStorage user:", parseError);
-            localStorage.removeItem("user");
-            localStorage.removeItem("token");
+            clearStoredAuth();
           }
         }
 
-        // Then verify with backend in background
         if (userData && token) {
           try {
-            const response: VerifyTokenResponse = await apiRequest(
-              "/auth/verify"
+            const response = await apiRequest<VerifyTokenResponse>(
+              "/auth/verify",
             );
 
             if (response.valid && isValidUser(response.user)) {
-              setUser(response.user);
-              localStorage.setItem("user", JSON.stringify(response.user));
+              const normalizedUser = normalizeUser(response.user);
+              setUser(normalizedUser);
+              localStorage.setItem("user", JSON.stringify(normalizedUser));
             } else {
               if (!isValidUser(user)) {
                 setUser(null);
-                localStorage.removeItem("user");
-                localStorage.removeItem("token");
+                clearStoredAuth();
               }
             }
           } catch (error) {
-            // console.error("Token verification failed:", error);
             if (!isValidUser(user)) {
               setUser(null);
-              localStorage.removeItem("user");
-              localStorage.removeItem("token");
+              clearStoredAuth();
             }
           }
         } else if (!userData && !token) {
@@ -142,8 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (error) {
         if (!isValidUser(user)) {
           setUser(null);
-          localStorage.removeItem("user");
-          localStorage.removeItem("token");
+          clearStoredAuth();
         }
       } finally {
         setIsLoading(false);
@@ -156,34 +143,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = async (
     identifier: string,
-    password: string
+    password: string,
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const data = await apiFetch<LoginResponse>("/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({ identifier, password }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Login failed");
-      }
-
-      const data: LoginResponse = await response.json();
-
-      // Store user data and token
-      setUser(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const normalizedUser = normalizeUser(data.user);
+      setUser(normalizedUser);
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
       localStorage.setItem("token", data.accessToken);
 
       navigate("/", { replace: true });
       return true;
     } catch (error) {
-      // console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Login failed";
       throw new Error(errorMessage);
@@ -197,82 +173,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const { confirmPassword, ...signupData } = userData;
 
-      // Create system user account
-      const signupResponse = await fetch(`${API_BASE_URL}/system_users`, {
+      const signupResult = await apiFetch<SignupResponse>("/system_users/signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(signupData),
       });
-
-      if (!signupResponse.ok) {
-        const errorData = await signupResponse.json();
-        throw new Error(errorData.message || "Signup failed");
-      }
-
-      const signupResult = await signupResponse.json();
 
       if (!signupResult.success) {
         throw new Error(signupResult.message || "Signup failed");
       }
 
-      // Auto-login with email
-      const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier: userData.email,
-          password: userData.password,
-        }),
-      });
-
-      if (loginResponse.ok) {
-        const loginData: LoginResponse = await loginResponse.json();
-        setUser(loginData.user);
-        localStorage.setItem("user", JSON.stringify(loginData.user));
-        localStorage.setItem("token", loginData.accessToken);
-        navigate("/", { replace: true });
-        return true;
-      } else {
-        // Fallback to username login
-        const loginResponse2 = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            identifier: userData.username,
-            password: userData.password,
-          }),
-        });
-
-        if (loginResponse2.ok) {
-          const loginData: LoginResponse = await loginResponse2.json();
-          setUser(loginData.user);
-          localStorage.setItem("user", JSON.stringify(loginData.user));
-          localStorage.setItem("token", loginData.accessToken);
-          navigate("/", { replace: true });
-          return true;
-        } else {
-          const errorData = await loginResponse2.json();
-          throw new Error(
-            `Signup successful but auto-login failed: ${errorData.message}`
-          );
-        }
+      try {
+        return await login(userData.email, userData.password);
+      } catch (loginError) {
+        return await login(userData.username, userData.password);
       }
     } catch (error) {
-      // console.error("Signup error:", error);
       let errorMessage = "Signup failed. Please try again.";
       if (error instanceof Error) {
         if (error.message.includes("already exists")) {
           errorMessage =
-            "An account with this email or username already exists.";
-        } else if (error.message.includes("auto-login failed")) {
-          errorMessage = "Account created successfully! Please login manually.";
-          setTimeout(() => navigate("/login"), 2000);
+            "An account with that staff ID, email, or username already exists.";
         } else {
           errorMessage = error.message;
         }
@@ -290,19 +210,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // console.error("Logout error:", error);
     } finally {
       setUser(null);
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+      clearStoredAuth();
       navigate("/login", { replace: true });
     }
   };
 
   const googleSignIn = () => {
-    window.location.href = `${API_BASE_URL}/auth/google`;
+    throw new Error("Google sign-in is not configured for this deployment.");
   };
 
   // Fixed updateProfile function in AuthContext
   const updateProfile = async (
-    updateData: UpdateProfileData
+    updateData: UpdateProfileData,
   ): Promise<User> => {
     setIsLoading(true);
     try {
@@ -310,42 +229,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("User not authenticated");
       }
 
-      const userId = user._id || user.id;
-      if (!userId) {
-        throw new Error("User ID not found");
-      }
-
-      const response = await apiRequest(`/system_users/${userId}`, {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
-
-      // console.log("Backend response:", response);
+      const response = await apiRequest<UpdateProfileResponse>(
+        "/system_users/me",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            username: updateData.username,
+            email: updateData.email,
+            phone: updateData.phone,
+            department: updateData.department,
+            designation: updateData.designation,
+            dutyStation: updateData.dutyStation,
+          }),
+        },
+      );
 
       if (response.success === false) {
         throw new Error(response.message || "Profile update failed");
       }
 
-      // Extract user data from response.data instead of using the whole response
       const userData = response.data;
       if (!userData) {
         throw new Error("No user data returned from server");
       }
 
-      // Ensure the user object has both _id and id
-      const userWithId = {
-        ...userData, // Use userData instead of response
-        id: userData._id || userData.id,
-      };
+      const normalizedUser = normalizeUser(userData);
+      setUser(normalizedUser);
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
 
-      // console.log("Processed user:", userWithId);
-
-      setUser(userWithId);
-      localStorage.setItem("user", JSON.stringify(userWithId));
-
-      return userWithId;
+      return normalizedUser;
     } catch (error) {
-      // console.error("Profile update error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Profile update failed";
       throw new Error(errorMessage);
@@ -356,7 +269,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Updated changePassword function in AuthContext
   const changePassword = async (
-    passwordData: ChangePasswordData
+    passwordData: ChangePasswordData,
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
@@ -370,12 +283,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("User ID not found");
       }
 
-      // Frontend validation
       if (passwordData.newPassword.length < 6) {
         throw new Error("New password must be at least 6 characters long");
       }
 
-      const response: ChangePasswordResponse = await apiRequest(
+      const response = await apiRequest<ChangePasswordResponse>(
         `/system_users/${userId}/change-password`,
         {
           method: "PATCH",
@@ -383,7 +295,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             currentPassword: passwordData.currentPassword,
             newPassword: passwordData.newPassword,
           }),
-        }
+        },
       );
 
       if (!response.success) {
@@ -392,7 +304,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return true;
     } catch (error) {
-      // console.error("Password change error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Password change failed";
       throw new Error(errorMessage);
@@ -401,14 +312,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const resetPassword = async (email: string): Promise<boolean> => {
-    try {
-      console.log(`Resetting password for email: ${email}`);
-      return true;
-    } catch (error) {
-      console.error("Error resetting password:", error);
-      return false;
-    }
+  const resetPassword = async (_email: string): Promise<boolean> => {
+    throw new Error(
+      "Self-service password reset is not configured. Please contact your HR system administrator.",
+    );
   };
 
   // Add to your AuthContext.tsx
@@ -432,10 +339,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error(response.message || "Account deletion failed");
       }
 
-      // Logout user after successful deletion
       setUser(null);
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+      clearStoredAuth();
 
       navigate("/login", { replace: true });
 

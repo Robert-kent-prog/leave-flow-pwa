@@ -1,9 +1,37 @@
-import { useState, useEffect, useCallback } from "react";
-import { Search, User, Mail, Phone, Calendar } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { format, isWithinInterval, parseISO } from "date-fns";
+import {
+  Calendar,
+  Loader2,
+  Mail,
+  Phone,
+  Plus,
+  Search,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -12,156 +40,173 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useEmployeesDirectory } from "@/hooks/useEmployeesDirectory";
+import { useLeaveRecords } from "@/hooks/useLeaveRecords";
+import { useSystemUsers } from "@/hooks/useSystemUsers";
+import { useAuth } from "@/hooks/useAuth";
+import { apiFetch } from "@/lib/api";
+import type { ApiLeaveRecord, ApiSystemUser, SystemRole } from "@/types/api";
 
-interface Employee {
-  _id: string;
-  employeeName: string;
-  pno: string;
+const parseRecordDate = (value?: string) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = parseISO(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDate = (value?: string) => {
+  const parsed = parseRecordDate(value);
+  return parsed ? format(parsed, "PPP") : "Not available";
+};
+
+const isCurrentlyOnLeave = (records: ApiLeaveRecord[], today: Date) =>
+  records.some((record) => {
+    const startDate = parseRecordDate(record.startDate);
+    const endDate = parseRecordDate(record.endDate);
+
+    if (!startDate || !endDate || record.status !== "approved") {
+      return false;
+    }
+
+    return isWithinInterval(today, { start: startDate, end: endDate });
+  });
+
+const roleOptions: { value: SystemRole; label: string }[] = [
+  { value: "employee", label: "Employee" },
+  { value: "assistant_hr", label: "Assistant HR" },
+  { value: "hr", label: "HR" },
+  { value: "admin", label: "Admin" },
+];
+
+type CreateUserFormState = {
+  username: string;
+  staffId: string;
+  email: string;
+  phone: string;
+  department: string;
   designation: string;
   dutyStation: string;
-  phone: string;
-  totalUsedLeaveDays: number;
-  leaveBalance: number;
-  pendingLeaves: number;
-  approvedLeaves: number;
-  currentStatus: "active" | "on-leave" | "inactive";
-  lastLeave?: {
-    startDate: string;
-    endDate: string;
-    type: string;
-    status: string;
-    days: number;
-  };
-}
-
-// Date formatting utility
-const formatDate = (dateString: string) => {
-  if (!dateString) return "No date";
-
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return "Invalid Date";
-    }
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return "Invalid Date";
-  }
+  password: string;
+  role: SystemRole;
 };
 
-// Debounce hook
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
+const defaultCreateUserForm: CreateUserFormState = {
+  username: "",
+  staffId: "",
+  email: "",
+  phone: "",
+  department: "",
+  designation: "",
+  dutyStation: "",
+  password: "",
+  role: "employee",
 };
 
-export default function Employees() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+const formatRoleLabel = (role: SystemRole) =>
+  role.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+
+export default function EmployeesDirectory() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [createUserForm, setCreateUserForm] =
+    useState<CreateUserFormState>(defaultCreateUserForm);
 
-  // Use debounced search term with 300ms delay
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const isAdmin = user?.role === "admin";
+  const systemUsersQuery = useSystemUsers(undefined, isAdmin);
+  const employeesQuery = useEmployeesDirectory(!isAdmin);
+  const leaveRecordsQuery = useLeaveRecords(undefined, { scope: "all" });
+  const today = useMemo(() => new Date(), []);
 
-  useEffect(() => {
-    fetchEmployees();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Use relative URL for production, absolute for development
-  const API_BASE_URL = "http://10.8.29.245:9000/api";
-
-  const fetchEmployees = async () => {
-    try {
-      setLoading(true);
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      const response = await fetch(`${API_BASE_URL}/leaves/employees/all`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Include cookies if using session-based auth
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Unauthorized - Please login again");
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setEmployees(data);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-
-      let errorMessage = "Failed to fetch employees";
-
-      if (
-        error.message.includes("Failed to fetch") ||
-        error.message.includes("ERR_CONNECTION_REFUSED")
-      ) {
-        errorMessage =
-          "Cannot connect to server. Please make sure the backend is running.";
-      } else if (error.message.includes("Unauthorized")) {
-        errorMessage = "Please login again to access employee data.";
-      }
-
-      toast({
-        title: "Connection Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const baseUsers = useMemo(() => {
+    if (isAdmin) {
+      return (systemUsersQuery.data ?? []).map((account) => ({
+        ...account,
+        employeeName: account.username,
+        pno: account.staffId,
+      }));
     }
-  };
 
-  // Add retry functionality
-  const retryConnection = () => {
-    setLoading(true);
-    fetchEmployees();
-  };
+    return employeesQuery.data ?? [];
+  }, [employeesQuery.data, isAdmin, systemUsersQuery.data]);
 
-  // Filter employees based on debounced search term
-  const filteredEmployees = employees.filter(
-    (employee) =>
-      employee.employeeName
-        .toLowerCase()
-        .includes(debouncedSearchTerm.toLowerCase()) ||
-      employee.pno.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      employee.designation
-        .toLowerCase()
-        .includes(debouncedSearchTerm.toLowerCase()) ||
-      employee.dutyStation
-        .toLowerCase()
-        .includes(debouncedSearchTerm.toLowerCase())
+  const leaveRecords = useMemo(
+    () => leaveRecordsQuery.data ?? [],
+    [leaveRecordsQuery.data],
   );
 
-  const getStatusBadge = (status: Employee["currentStatus"]) => {
+  const activeUsersQuery = isAdmin ? systemUsersQuery : employeesQuery;
+  const isLoading = activeUsersQuery.isLoading || leaveRecordsQuery.isLoading;
+  const hasError = activeUsersQuery.isError || leaveRecordsQuery.isError;
+
+  const directoryRecords = useMemo(() => {
+    return baseUsers.map((account) => {
+      const employeeRequests = leaveRecords.filter(
+        (record) => record.pno === account.pno,
+      );
+
+      const approvedRecords = employeeRequests.filter(
+        (record) => record.status === "approved",
+      );
+      const pendingRecords = employeeRequests.filter(
+        (record) => record.status === "pending",
+      );
+      const totalUsedLeaveDays = approvedRecords.reduce(
+        (total, record) => total + (record.days || 0),
+        0,
+      );
+      const lastRequest = [...employeeRequests].sort((a, b) => {
+        const left = parseRecordDate(a.startDate)?.getTime() ?? 0;
+        const right = parseRecordDate(b.startDate)?.getTime() ?? 0;
+        return right - left;
+      })[0];
+
+      const currentStatus = account.isActive === false
+        ? "inactive"
+        : isCurrentlyOnLeave(employeeRequests, today)
+          ? "on-leave"
+          : "active";
+
+      return {
+        ...account,
+        currentStatus,
+        pendingRequests: pendingRecords.length,
+        approvedRequests: approvedRecords.length,
+        totalUsedLeaveDays,
+        estimatedAnnualBalance: Math.max(21 - totalUsedLeaveDays, 0),
+        lastRequest,
+      };
+    });
+  }, [baseUsers, leaveRecords, today]);
+
+  const filteredUsers = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    if (!search) {
+      return directoryRecords;
+    }
+
+    return directoryRecords.filter((account) => {
+      return (
+        account.employeeName.toLowerCase().includes(search) ||
+        account.pno.toLowerCase().includes(search) ||
+        account.email.toLowerCase().includes(search) ||
+        account.role.toLowerCase().includes(search) ||
+        (account.department || "").toLowerCase().includes(search) ||
+        (account.designation || "").toLowerCase().includes(search) ||
+        (account.dutyStation || "").toLowerCase().includes(search)
+      );
+    });
+  }, [directoryRecords, searchTerm]);
+
+  const getStatusBadge = (status: "active" | "on-leave" | "inactive") => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-700">Active</Badge>;
       case "on-leave":
         return <Badge variant="secondary">On Leave</Badge>;
       case "inactive":
@@ -171,109 +216,199 @@ export default function Employees() {
     }
   };
 
-  if (loading) {
+  const resetCreateUserForm = () => {
+    setCreateUserForm(defaultCreateUserForm);
+  };
+
+  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsCreatingUser(true);
+
+    try {
+      await apiFetch("/system_users", {
+        method: "POST",
+        body: JSON.stringify({
+          username: createUserForm.username.trim(),
+          staffId: createUserForm.staffId.trim(),
+          email: createUserForm.email.trim().toLowerCase(),
+          phone: createUserForm.phone.trim(),
+          department: createUserForm.department.trim() || undefined,
+          designation: createUserForm.designation.trim() || undefined,
+          dutyStation: createUserForm.dutyStation.trim() || undefined,
+          password: createUserForm.password,
+          role: createUserForm.role,
+        }),
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["system-users"] }),
+        queryClient.invalidateQueries({ queryKey: ["employees-directory"] }),
+      ]);
+
+      toast.success(
+        `${formatRoleLabel(createUserForm.role)} account created successfully.`,
+      );
+      setIsCreateDialogOpen(false);
+      resetCreateUserForm();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create account.",
+      );
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading employees...</p>
-        </div>
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        Loading accounts...
       </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <Card className="border-destructive/20">
+        <CardHeader>
+          <CardTitle>Directory Unavailable</CardTitle>
+        </CardHeader>
+        <CardContent className="flex gap-3">
+          <Button onClick={() => activeUsersQuery.refetch()}>Reload Accounts</Button>
+          <Button variant="outline" onClick={() => leaveRecordsQuery.refetch()}>
+            Reload Leave Data
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Employee Directory
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {isAdmin ? "User Management" : "Employee Directory"}
           </h1>
-          <p className="text-muted-foreground">
-            View all employees created through leave requests
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isAdmin
+              ? "Create and review system accounts for employees, HR, assistant HR, and admins."
+              : "Employee accounts, leave activity, and current availability in one view."}
           </p>
         </div>
-        <button
-          onClick={retryConnection}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Refresh
-        </button>
+
+        <div className="flex flex-wrap gap-3">
+          {isAdmin && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Account
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => {
+              activeUsersQuery.refetch();
+              leaveRecordsQuery.refetch();
+            }}
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {/* Search */}
+      {isAdmin && (
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-slate-100 p-2 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-medium">Admin-managed account creation</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Public signup remains employee-only. HR, assistant HR, and
+                  admin accounts should be created internally from this page.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="pt-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search employees by name, P/No, designation, or duty station..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by name, staff ID, email, department, designation, duty station, or role"
               className="pl-10"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Desktop Table View */}
       <div className="hidden lg:block">
         <Card>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>P/No</TableHead>
-                  <TableHead>Designation</TableHead>
-                  <TableHead>Duty Station</TableHead>
-                  <TableHead>Phone</TableHead>
+                  <TableHead>Account</TableHead>
+                  {isAdmin && <TableHead>Role</TableHead>}
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Organization</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Leave Balance</TableHead>
-                  <TableHead>Used Days</TableHead>
-                  <TableHead>Last Leave</TableHead>
+                  <TableHead>Leave Activity</TableHead>
+                  <TableHead>Last Login</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.map((employee) => (
-                  <TableRow key={employee._id}>
-                    <TableCell className="font-medium">
-                      {employee.employeeName}
-                    </TableCell>
-                    <TableCell>{employee.pno}</TableCell>
-                    <TableCell>{employee.designation}</TableCell>
-                    <TableCell>{employee.dutyStation}</TableCell>
-                    <TableCell>{employee.phone}</TableCell>
+                {filteredUsers.map((account) => (
+                  <TableRow key={account._id}>
                     <TableCell>
-                      {getStatusBadge(employee.currentStatus)}
+                      <div className="font-medium">{account.employeeName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {account.pno}
+                      </div>
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      {employee.leaveBalance} days
-                    </TableCell>
-                    <TableCell>{employee.totalUsedLeaveDays} days</TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <Badge variant="outline">
+                          {formatRoleLabel(account.role)}
+                        </Badge>
+                      </TableCell>
+                    )}
                     <TableCell>
-                      {employee.lastLeave ? (
-                        <div className="text-xs">
-                          <div className="capitalize">
-                            {employee.lastLeave.type}
-                          </div>
-                          <div className="text-muted-foreground">
-                            {formatDate(employee.lastLeave.startDate)} -{" "}
-                            {formatDate(employee.lastLeave.endDate)}
-                          </div>
-                          <div className="text-muted-foreground">
-                            {employee.lastLeave.days} days •{" "}
-                            <span className="capitalize">
-                              {employee.lastLeave.status}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">
-                          No leave history
-                        </span>
-                      )}
+                      <div className="text-sm">{account.email}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {account.phone}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{account.department || "Not set"}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {(account.designation || "No designation")} •{" "}
+                        {account.dutyStation || "No duty station"}
+                      </div>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(account.currentStatus)}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        Approved: {account.approvedRequests}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Pending: {account.pendingRequests} • Used:{" "}
+                        {account.totalUsedLeaveDays} days
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Est. balance: {account.estimatedAnnualBalance} days
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {account.lastLogin ? formatDate(account.lastLogin) : "Never"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -283,103 +418,168 @@ export default function Employees() {
         </Card>
       </div>
 
-      {/* Mobile Card View */}
-      <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredEmployees.map((employee) => (
-          <Card
-            key={employee._id}
-            className="hover:shadow-lg transition-shadow"
-          >
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">
-                  {employee.employeeName}
-                </CardTitle>
-                {getStatusBadge(employee.currentStatus)}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {employee.pno} • {employee.designation}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{employee.phone}</span>
-              </div>
-              <div className="text-sm">
-                <span className="font-medium">Duty Station:</span>{" "}
-                {employee.dutyStation}
-              </div>
-
-              {/* Leave Balance */}
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Leave Balance</span>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+      <div className="grid gap-4 lg:hidden">
+        {filteredUsers.map((account) => (
+          <Card key={account._id}>
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-lg font-semibold">{account.employeeName}</p>
+                  <p className="text-sm text-muted-foreground">{account.pno}</p>
                 </div>
-                <div className="text-2xl font-bold text-primary">
-                  {employee.leaveBalance} days
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {employee.totalUsedLeaveDays} days used •{" "}
-                  {employee.pendingLeaves} pending
+                <div className="flex flex-col items-end gap-2">
+                  {isAdmin && (
+                    <Badge variant="outline">
+                      {formatRoleLabel(account.role)}
+                    </Badge>
+                  )}
+                  {getStatusBadge(account.currentStatus)}
                 </div>
               </div>
 
-              {employee.lastLeave && (
-                <div className="text-sm border-t pt-3">
-                  <div className="font-medium mb-1">Last Leave:</div>
-                  <div className="text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span>Type:</span>
-                      <span className="capitalize">
-                        {employee.lastLeave.type}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Period:</span>
-                      <span>
-                        {formatDate(employee.lastLeave.startDate)} -{" "}
-                        {formatDate(employee.lastLeave.endDate)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Duration:</span>
-                      <span>{employee.lastLeave.days} days</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Status:</span>
-                      <span className="capitalize">
-                        {employee.lastLeave.status}
-                      </span>
-                    </div>
-                  </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="h-4 w-4" />
+                  <span>{account.email}</span>
                 </div>
-              )}
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Phone className="h-4 w-4" />
+                  <span>{account.phone}</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span>
+                    {account.department || "No department"} •{" "}
+                    {account.designation || "No designation"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>{account.dutyStation || "No duty station"}</span>
+                </div>
+              </div>
 
-              {!employee.lastLeave && (
-                <div className="text-sm border-t pt-3 text-muted-foreground">
-                  No leave history available
-                </div>
-              )}
+              <div className="rounded-2xl border p-4 text-sm">
+                <p className="font-medium">Leave Activity</p>
+                <p className="mt-2 text-muted-foreground">
+                  Approved: {account.approvedRequests} • Pending:{" "}
+                  {account.pendingRequests}
+                </p>
+                <p className="text-muted-foreground">
+                  Used: {account.totalUsedLeaveDays} days • Estimated balance:{" "}
+                  {account.estimatedAnnualBalance} days
+                </p>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {filteredEmployees.length === 0 && !loading && (
-        <Card>
-          <CardContent className="text-center py-8">
-            <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No employees found</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              {debouncedSearchTerm
-                ? "Try adjusting your search terms"
-                : "Employees will appear here after their first leave request is submitted"}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={(open) => {
+          setIsCreateDialogOpen(open);
+          if (!open) {
+            resetCreateUserForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Account</DialogTitle>
+            <DialogDescription>
+              Admins can provision employee, HR, assistant HR, and admin
+              accounts from this internal form.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={createUserForm.role}
+                onValueChange={(value) =>
+                  setCreateUserForm((current) => ({
+                    ...current,
+                    role: value as SystemRole,
+                  }))
+                }
+              >
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {[
+              { key: "username", label: "Full Name", type: "text" },
+              { key: "staffId", label: "Staff ID", type: "text" },
+              { key: "email", label: "Email", type: "email" },
+              { key: "phone", label: "Phone Number", type: "text" },
+              { key: "department", label: "Department", type: "text" },
+              { key: "designation", label: "Designation", type: "text" },
+              { key: "dutyStation", label: "Duty Station", type: "text" },
+              { key: "password", label: "Temporary Password", type: "password" },
+            ].map((field) => (
+              <div
+                key={field.key}
+                className={
+                  field.key === "dutyStation" ? "space-y-2 md:col-span-2" : "space-y-2"
+                }
+              >
+                <Label htmlFor={field.key}>{field.label}</Label>
+                <Input
+                  id={field.key}
+                  type={field.type}
+                  value={
+                    createUserForm[field.key as keyof CreateUserFormState] as string
+                  }
+                  onChange={(event) =>
+                    setCreateUserForm((current) => ({
+                      ...current,
+                      [field.key]: event.target.value,
+                    }))
+                  }
+                  required={
+                    ["username", "staffId", "email", "phone", "password"].includes(
+                      field.key,
+                    ) ||
+                    createUserForm.role === "employee"
+                  }
+                />
+              </div>
+            ))}
+
+            <DialogFooter className="md:col-span-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCreateDialogOpen(false)}
+                disabled={isCreatingUser}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreatingUser}>
+                {isCreatingUser ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating
+                  </>
+                ) : (
+                  "Create Account"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

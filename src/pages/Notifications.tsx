@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  AlertCircle,
   Bell,
   Check,
-  Filter,
-  Archive,
-  Trash2,
-  Clock,
-  AlertCircle,
   CheckCircle,
+  Clock3,
   Info,
+  Trash2,
 } from "lucide-react";
+import { formatDistanceToNowStrict, parseISO } from "date-fns";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -17,419 +17,343 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { useNotificationsData } from "@/hooks/useNotificationsData";
+import { ApiNotification } from "@/types/api";
 
-// Dummy notification data
-const notificationsData = [
-  {
-    id: 1,
-    type: "leave_approval",
-    title: "Leave Request Approved",
-    message:
-      "Your annual leave request for Dec 15-22 has been approved by HR Manager",
-    timestamp: "2 minutes ago",
-    read: false,
-    priority: "high",
-  },
-  {
-    id: 2,
-    type: "leave_rejection",
-    title: "Leave Request Rejected",
-    message:
-      "Your sick leave request for Jan 5-7 was rejected due to insufficient documentation",
-    timestamp: "1 hour ago",
-    read: false,
-    priority: "high",
-  },
-  {
-    id: 3,
-    type: "new_request",
-    title: "New Leave Request",
-    message: "John Doe has submitted a new paternity leave request for review",
-    timestamp: "3 hours ago",
-    read: true,
-    priority: "medium",
-  },
-  {
-    id: 4,
-    type: "reminder",
-    title: "Leave Balance Reminder",
-    message: "You have 12 annual leave days remaining this year",
-    timestamp: "5 hours ago",
-    read: true,
-    priority: "low",
-  },
-  {
-    id: 5,
-    type: "system",
-    title: "System Maintenance",
-    message:
-      "Scheduled maintenance this weekend. System will be unavailable from 10 PM to 2 AM",
-    timestamp: "1 day ago",
-    read: true,
-    priority: "medium",
-  },
-  {
-    id: 6,
-    type: "leave_approval",
-    title: "Leave Request Approved",
-    message: "Your maternity leave request has been approved and scheduled",
-    timestamp: "2 days ago",
-    read: true,
-    priority: "high",
-  },
-];
+type NotificationFilter = "all" | "unread" | "important";
 
-const NotificationPage = () => {
-  const [notifications, setNotifications] = useState(notificationsData);
-  const [activeTab, setActiveTab] = useState("all");
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(false);
+const getNotificationIcon = (type: ApiNotification["type"]) => {
+  switch (type) {
+    case "leave_approval":
+      return <CheckCircle className="h-5 w-5 text-emerald-600" />;
+    case "leave_rejection":
+      return <AlertCircle className="h-5 w-5 text-rose-600" />;
+    case "new_request":
+      return <Bell className="h-5 w-5 text-primary" />;
+    case "reminder":
+      return <Clock3 className="h-5 w-5 text-amber-600" />;
+    default:
+      return <Info className="h-5 w-5 text-muted-foreground" />;
+  }
+};
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const highPriorityCount = notifications.filter(
-    (n) => n.priority === "high" && !n.read
+const getPriorityBadge = (priority: ApiNotification["priority"]) => {
+  switch (priority) {
+    case "high":
+      return <Badge variant="destructive">High</Badge>;
+    case "medium":
+      return <Badge variant="secondary">Medium</Badge>;
+    default:
+      return <Badge variant="outline">Low</Badge>;
+  }
+};
+
+const getTimestampLabel = (value: string) => {
+  const parsed = parseISO(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Recently";
+  }
+
+  return `${formatDistanceToNowStrict(parsed, { addSuffix: true })}`;
+};
+
+export default function NotificationPage() {
+  const [activeTab, setActiveTab] = useState<NotificationFilter>("all");
+  const {
+    notifications,
+    isLoading,
+    isError,
+    refetch,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    isMutating,
+  } = useNotificationsData();
+
+  const unreadCount = notifications.filter((notification) => !notification.isRead)
+    .length;
+  const importantCount = notifications.filter(
+    (notification) => notification.priority === "high" && !notification.isRead,
   ).length;
 
-  const markAsRead = (id: number) => {
-    setNotifications(
-      notifications.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(
-      notifications.map((notification) => ({
-        ...notification,
-        read: true,
-      }))
-    );
-  };
-
-  const deleteNotification = (id: number) => {
-    setNotifications(
-      notifications.filter((notification) => notification.id !== id)
-    );
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "leave_approval":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "leave_rejection":
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
-      case "new_request":
-        return <Bell className="h-5 w-5 text-blue-500" />;
-      case "reminder":
-        return <Clock className="h-5 w-5 text-amber-500" />;
+  const filteredNotifications = useMemo(() => {
+    switch (activeTab) {
+      case "unread":
+        return notifications.filter((notification) => !notification.isRead);
+      case "important":
+        return notifications.filter((notification) => notification.priority === "high");
       default:
-        return <Info className="h-5 w-5 text-gray-500" />;
+        return notifications;
+    }
+  }, [activeTab, notifications]);
+
+  const notificationsByType = useMemo(
+    () =>
+      notifications.reduce<Record<string, number>>((accumulator, notification) => {
+        accumulator[notification.type] = (accumulator[notification.type] || 0) + 1;
+        return accumulator;
+      }, {}),
+    [notifications],
+  );
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+      toast.success("All notifications marked as read.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to mark notifications as read.",
+      );
     }
   };
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return (
-          <Badge variant="destructive" className="text-xs">
-            High
-          </Badge>
-        );
-      case "medium":
-        return (
-          <Badge variant="default" className="text-xs">
-            Medium
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary" className="text-xs">
-            Low
-          </Badge>
-        );
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await markAsRead(id);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update notification.",
+      );
     }
   };
 
-  const filteredNotifications =
-    activeTab === "all"
-      ? notifications
-      : activeTab === "unread"
-      ? notifications.filter((n) => !n.read)
-      : notifications.filter((n) => n.priority === "high");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteNotification(id);
+      toast.success("Notification removed.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to delete notification.",
+      );
+    }
+  };
+
+  if (isError) {
+    return (
+      <Card className="border-destructive/20">
+        <CardHeader>
+          <CardTitle>Notifications Unavailable</CardTitle>
+          <CardDescription>
+            Live notification data could not be loaded from the backend.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => refetch()}>Retry</Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Bell className="h-6 w-6 sm:h-8 sm:w-8" />
-            Notifications
-          </h1>
-          <p className="text-muted-foreground">
-            Manage your notifications and stay updated
+          <h2 className="text-3xl font-semibold tracking-tight">
+            Notification Center
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+            Track approvals, reminders, and system events from one place.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Filter className="mr-2 h-4 w-4" />
-                Actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={markAllAsRead}>
-                <Check className="mr-2 h-4 w-4" />
-                Mark all as read
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={clearAll}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Clear all
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isLoading || isMutating}
+          >
+            Refresh
+          </Button>
+          <Button
+            onClick={handleMarkAllAsRead}
+            disabled={unreadCount === 0 || isLoading || isMutating}
+          >
+            Mark all as read
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Notifications List */}
-        <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader className="pb-3 px-3 sm:px-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <CardTitle className="text-lg sm:text-xl">
-                  Your Notifications
-                </CardTitle>
-                <div className="flex flex-wrap items-center gap-2 justify-end">
-                  <Badge
-                    variant="outline"
-                    className="bg-blue-50 text-blue-700 px-2 py-1 text-xs sm:text-sm"
-                  >
-                    {unreadCount} unread
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="bg-red-50 text-red-700 px-2 py-1 text-xs sm:text-sm"
-                  >
-                    {highPriorityCount} important
-                  </Badge>
-                </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Unread</p>
+            <p className="mt-2 text-3xl font-semibold">
+              {isLoading ? "..." : unreadCount}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">High Priority</p>
+            <p className="mt-2 text-3xl font-semibold">
+              {isLoading ? "..." : importantCount}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Total Notifications</p>
+            <p className="mt-2 text-3xl font-semibold">
+              {isLoading ? "..." : notifications.length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.8fr_1fr]">
+        <Card>
+          <CardHeader className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>Incoming Activity</CardTitle>
+                <CardDescription>
+                  Notifications update from the live backend feed.
+                </CardDescription>
               </div>
-              <CardDescription className="text-xs sm:text-sm mt-1">
-                Recent notifications from your leave management system
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-3 sm:px-6 pb-6">
               <Tabs
                 value={activeTab}
-                onValueChange={setActiveTab}
-                className="w-full"
+                onValueChange={(value) => setActiveTab(value as NotificationFilter)}
               >
-                <TabsList className="grid grid-cols-3 mb-4 h-10 sm:h-12">
-                  <TabsTrigger value="all" className="text-xs sm:text-sm">
-                    All
-                  </TabsTrigger>
-                  <TabsTrigger value="unread" className="text-xs sm:text-sm">
-                    Unread
-                  </TabsTrigger>
-                  <TabsTrigger value="important" className="text-xs sm:text-sm">
-                    Important
-                  </TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 sm:w-[320px]">
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="unread">Unread</TabsTrigger>
+                  <TabsTrigger value="important">Important</TabsTrigger>
                 </TabsList>
-
-                {/* Dynamically sized scroll area — max 70vh on mobile, 500px on desktop */}
-                <ScrollArea className="h-[40vh] sm:h-[50vh] md:h-[500px]">
-                  {filteredNotifications.length === 0 ? (
-                    <div className="text-center py-8 sm:py-12 text-muted-foreground px-2">
-                      <Bell className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
-                      <p className="text-sm sm:text-base font-medium">
-                        No notifications found
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 sm:space-y-4 pr-1">
-                      {filteredNotifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={`p-3 sm:p-4 rounded-lg border transition-all duration-200 hover:shadow-sm ${
-                            !notification.read
-                              ? "bg-blue-50 border-blue-200"
-                              : "bg-white border-border"
-                          }`}
-                        >
-                          <div className="flex items-start gap-3 sm:gap-4">
-                            <div className="mt-1 flex-shrink-0">
-                              {getNotificationIcon(notification.type)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-1">
-                                <h3 className="font-semibold text-sm sm:text-base leading-tight">
-                                  {notification.title}
-                                </h3>
-                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
-                                  {getPriorityBadge(notification.priority)}
-                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                    {notification.timestamp}
-                                  </span>
-                                </div>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[60vh] pr-4">
+              {isLoading ? (
+                <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  Loading notifications...
+                </div>
+              ) : filteredNotifications.length === 0 ? (
+                <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  No notifications match the current filter.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredNotifications.map((notification) => (
+                    <div
+                      key={notification._id}
+                      className={`rounded-2xl border p-4 transition-colors ${
+                        notification.isRead ? "bg-card" : "bg-primary/5"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 rounded-xl bg-background p-2 shadow-sm">
+                          {getNotificationIcon(notification.type)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium">{notification.title}</p>
+                                {!notification.isRead && (
+                                  <Badge variant="secondary">Unread</Badge>
+                                )}
+                                {getPriorityBadge(notification.priority)}
                               </div>
-                              <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-2 leading-relaxed">
+                              <p className="mt-2 text-sm text-muted-foreground">
                                 {notification.message}
                               </p>
-                              <div className="flex flex-wrap items-center gap-2">
-                                {!notification.read && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => markAsRead(notification.id)}
-                                    className="h-8 px-2 text-xs sm:text-sm font-medium"
-                                  >
-                                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                                    Mark as read
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    deleteNotification(notification.id)
-                                  }
-                                  className="h-8 px-2 text-xs sm:text-sm text-red-600 hover:text-red-700 font-medium"
-                                >
-                                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                                  Delete
-                                </Button>
-                              </div>
                             </div>
+                            <p className="text-xs text-muted-foreground">
+                              {getTimestampLabel(notification.createdAt)}
+                            </p>
+                          </div>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {!notification.isRead && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMarkAsRead(notification._id)}
+                                disabled={isMutating}
+                              >
+                                <Check className="mr-2 h-4 w-4" />
+                                Mark as read
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(notification._id)}
+                              disabled={isMutating}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </Button>
                           </div>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  )}
-                </ScrollArea>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
-        {/* Notification Settings */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
+              <CardTitle>Notification Mix</CardTitle>
               <CardDescription>
-                Configure how you receive notifications
+                Live distribution by event type.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications">
-                    Email Notifications
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive notifications via email
-                  </p>
-                </div>
-                <Switch
-                  id="email-notifications"
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="push-notifications">Push Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive browser notifications
-                  </p>
-                </div>
-                <Switch
-                  id="push-notifications"
-                  checked={pushNotifications}
-                  onCheckedChange={setPushNotifications}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <Label>Notification Types</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm">Leave approvals</span>
+            <CardContent className="space-y-3">
+              {Object.entries(notificationsByType).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No notification data is available yet.
+                </p>
+              ) : (
+                Object.entries(notificationsByType).map(([type, count]) => (
+                  <div
+                    key={type}
+                    className="flex items-center justify-between rounded-2xl border px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-medium capitalize">
+                        {type.replace(/_/g, " ")}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Total received
+                      </p>
+                    </div>
+                    <Badge variant="secondary">{count}</Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm">Leave rejections</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm">New requests</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm">Reminders</span>
-                  </div>
-                </div>
-              </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>Operating Notes</CardTitle>
+              <CardDescription>
+                Notifications are now backed by the API instead of local demo data.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={markAllAsRead}
-              >
-                <Check className="mr-2 h-4 w-4" />
-                Mark all as read
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={clearAll}
-              >
-                <Archive className="mr-2 h-4 w-4" />
-                Archive all
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Filter className="mr-2 h-4 w-4" />
-                Configure filters
-              </Button>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Unread counts stay in sync with the global header badge.
+              </p>
+              <p>
+                Actions such as mark-as-read and delete now persist through the
+                backend.
+              </p>
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
   );
-};
-
-export default NotificationPage;
+}

@@ -1,19 +1,6 @@
-import { NavLink, useLocation } from "react-router-dom";
-import {
-  Calendar,
-  Users,
-  FileText,
-  BarChart3,
-  Settings,
-  Home,
-  Plus,
-  ClipboardList,
-  Clock,
-  X,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-
+import { NavLink } from "react-router-dom";
+import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { type ComponentType, useRef } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,34 +8,21 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useRef } from "react";
-import { useIsMobile } from "@/hooks/use-mobile"; // Updated import
+import { useIsMobile } from "@/hooks/use-mobile";
+import { getAppNavigation, settingsNavItem } from "@/lib/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AppSidebar() {
-  const mainItems = [
-    { title: "Dashboard", url: "/", icon: Home },
-    { title: "New Leave Request", url: "/request", icon: Plus },
-    { title: "Leave History", url: "/history", icon: Clock },
-  ];
-
-  const managementItems = [
-    { title: "Employees", url: "/employees", icon: Users },
-    { title: "Reports", url: "/reports", icon: ClipboardList },
-    { title: "Analytics", url: "/analytics", icon: BarChart3 },
-    { title: "Company Leaves", url: "/company-planner", icon: Calendar },
-    { title: "Leave Schedule", url: "/calendar", icon: Calendar },
-  ];
-
+  const { user } = useAuth();
   const { state } = useSidebar();
-  const location = useLocation();
   const collapsed = state === "collapsed";
-  const isMobile = useIsMobile(); // Now using the proper hook
+  const isMobile = useIsMobile();
   const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
+  const appNavigation = getAppNavigation(user?.role);
 
   const closeSidebar = () => {
     if (sidebarTriggerRef.current) {
@@ -56,213 +30,123 @@ export function AppSidebar() {
     }
   };
 
+  const renderNavItem = ({
+    title,
+    url,
+    icon: Icon,
+    end,
+  }: {
+    title: string;
+    url: string;
+    icon: ComponentType<{ className?: string }>;
+    end?: boolean;
+  }) => (
+    <SidebarMenuItem key={title}>
+      <NavLink
+        to={url}
+        end={end}
+        className={({ isActive }) =>
+          [
+            "group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150",
+            isActive
+              ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950"
+              : "text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-white",
+          ].join(" ")
+        }
+        onClick={() => {
+          if (isMobile && state === "expanded") {
+            closeSidebar();
+          }
+        }}
+      >
+        <Icon className={`h-5 w-5 flex-shrink-0 ${collapsed ? "" : "mr-3"}`} />
+        {!collapsed && <span className="truncate">{title}</span>}
+        {!collapsed && (
+          <ChevronRight className="ml-auto h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100" />
+        )}
+      </NavLink>
+    </SidebarMenuItem>
+  );
+
   return (
     <Sidebar
       className={`${
-        collapsed ? "w-16" : "w-64"
-      } bg-blue-600  border-r shadow-xl transition-all duration-300`}
+        collapsed ? "w-[78px]" : "w-64"
+      } border-r border-slate-200 bg-white text-slate-900 transition-[width] duration-200 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100`}
       collapsible="icon"
     >
-      {/* Header Section */}
-      <div className="p-4 relative border-b">
+      <div className="relative border-b border-slate-200 px-4 py-4 dark:border-slate-800">
         <div
-          className={`flex items-center gap-3 transition-all duration-300 ${
+          className={`flex items-center gap-3 transition-all duration-200 ${
             collapsed ? "justify-center" : ""
           }`}
         >
-          <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg border border-white/10">
-            <FileText className="w-5 h-5  text-primary" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950">
+            <CalendarDays className="h-5 w-5" />
           </div>
           {!collapsed && (
-            <div className="flex flex-col text-black dark:text-white">
-              <h2 className="font-bold text-lg">LeaveManager</h2>
-              <p className="text-gray-500  text-xs">HR Portal</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                LeaveFlow
+              </p>
+              <h2 className="truncate text-base font-semibold text-slate-950 dark:text-slate-50">
+                HR Workspace
+              </h2>
             </div>
           )}
         </div>
 
-        {/* Mobile Close Button */}
         {state === "expanded" && isMobile && (
           <button
             onClick={closeSidebar}
-            className="absolute top-4 right-4 h-8 w-8 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center text-black dark:text-white hover:bg-white/20 transition-colors"
-            aria-label="Close sidebar"
+            className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+            aria-label="Close navigation"
           >
-            <X className="h-6 w-6" />
+            <X className="h-4 w-4" />
           </button>
         )}
       </div>
 
       <SidebarContent className="px-3 py-4">
-        {/* Main Navigation Group */}
-        <SidebarGroup>
+        {appNavigation.map((section, index) => (
+          <SidebarGroup
+            key={section.label}
+            className={index === 0 ? "" : "mt-4"}
+          >
+            {!collapsed && (
+              <SidebarGroupLabel className="px-2 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                {section.label}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>{section.items.map(renderNavItem)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+
+        <SidebarGroup className="mt-auto border-t border-slate-200 pt-4 dark:border-slate-800">
           {!collapsed && (
-            <SidebarGroupLabel className="text-gray-500 dark:text-white text-xs uppercase tracking-wider font-semibold px-2 mb-2">
-              Navigation
+            <SidebarGroupLabel className="px-2 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+              Preferences
             </SidebarGroupLabel>
           )}
           <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    className="group hover:bg-blue-700/50 transition-all duration-200"
-                  >
-                    <NavLink
-                      to={item.url}
-                      end
-                      className={({ isActive }) =>
-                        [
-                          "flex items-center rounded-xl px-3 py-3 transition-all duration-200 group-hover:translate-x-1",
-                          isActive
-                            ? "bg-primary shadow-lg border-l-4 border-primary text-primary font-semibold"
-                            : "text-primary hover:text-white hover:bg-primary",
-                        ].join(" ")
-                      }
-                      onClick={() => {
-                        if (isMobile && state === "expanded") {
-                          closeSidebar();
-                        }
-                      }}
-                    >
-                      <item.icon
-                        className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${
-                          collapsed ? "" : "mr-3"
-                        }`}
-                      />
-                      {!collapsed && (
-                        <span className="truncate text-sm font-medium">
-                          {item.title}
-                        </span>
-                      )}
-                      {!collapsed && (
-                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <ChevronRight className="w-4 h-4 text-primary" />
-                        </div>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Management Group */}
-        <SidebarGroup className="mt-6">
-          {!collapsed && (
-            <SidebarGroupLabel className="text-gray-500 dark:text-white text-xs uppercase tracking-wider font-semibold px-2 mb-2">
-              Management
-            </SidebarGroupLabel>
-          )}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {managementItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    className="group hover:bg-blue-700/50 transition-all duration-200"
-                  >
-                    <NavLink
-                      to={item.url}
-                      className={({ isActive }) =>
-                        [
-                          "flex items-center rounded-xl px-3 py-3 transition-all duration-200 group-hover:translate-x-1",
-                          isActive
-                            ? "bg-white shadow-lg border-l-4 border-primary text-primary font-semibold"
-                            : "text-primary hover:text-white hover:bg-primary-700/30",
-                        ].join(" ")
-                      }
-                      onClick={() => {
-                        if (isMobile && state === "expanded") {
-                          closeSidebar();
-                        }
-                      }}
-                    >
-                      <item.icon
-                        className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${
-                          collapsed ? "" : "mr-3"
-                        }`}
-                      />
-                      {!collapsed && (
-                        <span className="truncate text-sm font-medium">
-                          {item.title}
-                        </span>
-                      )}
-                      {!collapsed && (
-                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <ChevronRight className="w-4 h-4 text-primary" />
-                        </div>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Settings Group */}
-        <SidebarGroup className="mt-auto pt-6 border-t">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className="group hover:bg-blue-700/50 transition-all duration-200"
-                >
-                  <NavLink
-                    to="/settings"
-                    className={({ isActive }) =>
-                      [
-                        "flex items-center rounded-xl px-3 py-3 transition-all duration-200 group-hover:translate-x-1",
-                        isActive
-                          ? "bg-white shadow-lg border-l-4 border-primary text-primary font-semibold"
-                          : "text-primary hover:text-white hover:bg-primary-700/30",
-                      ].join(" ")
-                    }
-                    onClick={() => {
-                      if (isMobile && state === "expanded") {
-                        closeSidebar();
-                      }
-                    }}
-                  >
-                    <Settings
-                      className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${
-                        collapsed ? "" : "mr-3"
-                      }`}
-                    />
-                    {!collapsed && (
-                      <span className="truncate text-sm font-medium">
-                        Settings
-                      </span>
-                    )}
-                    {!collapsed && (
-                      <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <ChevronRight className="w-4 h-4 text-primary" />
-                      </div>
-                    )}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <SidebarMenu>{renderNavItem(settingsNavItem)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer with Collapse Trigger */}
-      <div className="p-4 border-t">
+      <div className="border-t border-slate-200 p-4 dark:border-slate-800">
         <SidebarTrigger
           ref={sidebarTriggerRef}
-          className="w-full bg-primary hover:bg-blue-300/70 text-white dark:text-gray-500 border-blue-600 transition-all duration-200 rounded-xl py-3 group hover:text-white"
+          className="w-full rounded-lg border border-slate-200 bg-white text-slate-900 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
         >
           {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="h-4 w-4" />
           ) : (
-            <div className="flex items-center justify-between w-full">
-              <span className="text-sm font-medium">Collapse</span>
-              <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            <div className="flex w-full items-center justify-between text-sm font-medium">
+              <span>Collapse</span>
+              <ChevronLeft className="h-4 w-4" />
             </div>
           )}
         </SidebarTrigger>

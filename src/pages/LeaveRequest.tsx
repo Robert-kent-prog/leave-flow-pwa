@@ -1,5 +1,16 @@
-import { useState, useContext } from "react";
-import { Calendar, FileText, Send, User, Loader2 } from "lucide-react";
+import { useContext, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CalendarDays,
+  FileText,
+  Loader2,
+  Send,
+  UserRound,
+} from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,473 +23,595 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { AuthContext } from "@/contexts/AuthContextInstance";
-import { ApiContext } from "@/contexts/AuthContextInstance";
+import { AuthContext, ApiContext } from "@/contexts/AuthContextInstance";
+import { useEmployeesDirectory } from "@/hooks/useEmployeesDirectory";
+import { useLeaveBalance } from "@/hooks/useLeaveBalance";
+import { useCompanyHolidays } from "@/hooks/useCompanyHolidays";
+import { isHrRole } from "@/lib/roles";
+import type { ApiHoliday } from "@/types/api";
+
+type LeaveRequestFormState = {
+  employeeId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+};
+
+type RequestProfile = {
+  id: string;
+  name: string;
+  staffId: string;
+  department?: string;
+  designation?: string;
+  dutyStation?: string;
+  phone?: string;
+};
+
+const leaveTypeOptions = [
+  { value: "annual", label: "Annual Leave" },
+  { value: "sick", label: "Sick Leave" },
+  { value: "maternity", label: "Maternity Leave" },
+  { value: "paternity", label: "Paternity Leave" },
+  { value: "compassionate", label: "Compassionate Leave" },
+  { value: "emergency", label: "Emergency Leave" },
+  { value: "study", label: "Study Leave" },
+  { value: "other", label: "Other" },
+];
+
+const toDateKey = (value: Date | string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString().split("T")[0];
+};
+
+const calculateWorkingDays = (
+  startDate?: string,
+  endDate?: string,
+  holidayDateSet: Set<string> = new Set(),
+) => {
+  if (!startDate || !endDate) {
+    return 0;
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return 0;
+  }
+
+  let days = 0;
+  for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+    if (
+      date.getDay() !== 0 &&
+      date.getDay() !== 6 &&
+      !holidayDateSet.has(toDateKey(date))
+    ) {
+      days += 1;
+    }
+  }
+
+  return days;
+};
 
 export default function LeaveRequest() {
-  const [formData, setFormData] = useState({
-    employeeName: "",
-    pno: "",
-    designation: "",
-    dutyStation: "",
-    phone: "",
+  const authContext = useContext(AuthContext);
+  const apiContext = useContext(ApiContext);
+  const queryClient = useQueryClient();
+
+  if (!authContext || !apiContext) {
+    throw new Error("LeaveRequest must be used within the auth and API providers");
+  }
+
+  const { user } = authContext;
+  const { createLeaveRequest, isLoading } = apiContext;
+  const canCreateOnBehalf = isHrRole(user?.role);
+  const employeesQuery = useEmployeesDirectory(canCreateOnBehalf);
+  const holidaysQuery = useCompanyHolidays();
+
+  const [formData, setFormData] = useState<LeaveRequestFormState>({
+    employeeId: "self",
     leaveType: "",
-    applicationDate: new Date(),
-    startDate: undefined as Date | undefined,
-    endDate: undefined as Date | undefined,
+    startDate: "",
+    endDate: "",
     reason: "",
   });
 
-  const { toast } = useToast();
-  const { user } = useContext(AuthContext);
-  const { createLeaveRequest, isLoading } = useContext(ApiContext)!;
+  const selectedProfile = useMemo<RequestProfile | null>(() => {
+    if (!user) {
+      return null;
+    }
 
-  const calculateLeaveDays = () => {
-    if (!formData.startDate || !formData.endDate) return 0;
+    if (!canCreateOnBehalf || formData.employeeId === "self") {
+      return {
+        id: user._id,
+        name: user.username,
+        staffId: user.staffId,
+        department: user.department,
+        designation: user.designation,
+        dutyStation: user.dutyStation,
+        phone: user.phone,
+      };
+    }
+
+    const employee = (employeesQuery.data ?? []).find(
+      (candidate) => candidate._id === formData.employeeId,
+    );
+
+    if (!employee) {
+      return null;
+    }
+
+    return {
+      id: employee._id,
+      name: employee.employeeName,
+      staffId: employee.pno,
+      department: employee.department,
+      designation: employee.designation,
+      dutyStation: employee.dutyStation,
+      phone: employee.phone,
+    };
+  }, [canCreateOnBehalf, employeesQuery.data, formData.employeeId, user]);
+
+  const holidayDateSet = useMemo(
+    () => new Set((holidaysQuery.data ?? []).map((holiday) => toDateKey(holiday.date))),
+    [holidaysQuery.data],
+  );
+  const holidaysInSelectedRange = useMemo<ApiHoliday[]>(() => {
+    if (!formData.startDate || !formData.endDate) {
+      return [];
+    }
 
     const start = new Date(formData.startDate);
     const end = new Date(formData.endDate);
-    let days = 0;
 
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      // Exclude weekends (Saturday = 6, Sunday = 0)
-      if (d.getDay() !== 0 && d.getDay() !== 6) {
-        days++;
-      }
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+      return [];
     }
 
-    return days;
-  };
+    return (holidaysQuery.data ?? []).filter((holiday) => {
+      const holidayDate = new Date(holiday.date);
+      holidayDate.setHours(0, 0, 0, 0);
+      return holidayDate >= start && holidayDate <= end;
+    });
+  }, [formData.endDate, formData.startDate, holidaysQuery.data]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.startDate || !formData.endDate) {
-      toast({
-        title: "Invalid Dates",
-        description: "Please select both start and end dates.",
-        variant: "destructive",
-      });
-      return;
+  const missingProfileFields = useMemo(() => {
+    if (!selectedProfile) {
+      return ["employee profile"];
     }
 
-    if (formData.startDate > formData.endDate) {
-      toast({
-        title: "Invalid Date Range",
-        description: "End date must be after start date.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const missing: string[] = [];
+
+    if (!selectedProfile.designation) missing.push("designation");
+    if (!selectedProfile.dutyStation) missing.push("duty station");
+    if (!selectedProfile.phone) missing.push("phone number");
+
+    return missing;
+  }, [selectedProfile]);
+
+  const workingDays = useMemo(
+    () => calculateWorkingDays(formData.startDate, formData.endDate, holidayDateSet),
+    [formData.endDate, formData.startDate, holidayDateSet],
+  );
+  const leaveBalanceQuery = useLeaveBalance(
+    canCreateOnBehalf ? selectedProfile?.staffId : undefined,
+    Boolean(selectedProfile),
+  );
+  const selectedBalance = useMemo(
+    () =>
+      leaveBalanceQuery.data?.balances.find(
+        (balance) => balance.leaveType === formData.leaveType,
+      ),
+    [formData.leaveType, leaveBalanceQuery.data?.balances],
+  );
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to submit a leave request.",
-        variant: "destructive",
-      });
+      toast.error("You must be signed in to submit a leave request.");
       return;
     }
 
-    // Validate all required fields
-    if (
-      !formData.employeeName ||
-      !formData.pno ||
-      !formData.designation ||
-      !formData.dutyStation ||
-      !formData.phone ||
-      !formData.leaveType ||
-      !formData.reason
-    ) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
+    if (!formData.leaveType || !formData.startDate || !formData.endDate || !formData.reason.trim()) {
+      toast.error("Complete the leave type, date range, and reason.");
+      return;
+    }
+
+    if (new Date(formData.startDate) > new Date(formData.endDate)) {
+      toast.error("End date must be on or after the start date.");
+      return;
+    }
+
+    if (missingProfileFields.length > 0) {
+      toast.error(
+        `The selected profile is missing: ${missingProfileFields.join(", ")}.`,
+      );
       return;
     }
 
     try {
-      // Format dates as ISO strings for the API
-      const leaveRequestData = {
-        employeeName: formData.employeeName,
-        pno: formData.pno,
-        designation: formData.designation,
-        dutyStation: formData.dutyStation,
-        phone: formData.phone,
+      await createLeaveRequest({
+        employeeId: canCreateOnBehalf && formData.employeeId !== "self"
+          ? formData.employeeId
+          : undefined,
         leaveType: formData.leaveType,
-        startDate: formData.startDate.toISOString(), // Convert to ISO string
-        endDate: formData.endDate.toISOString(), // Convert to ISO string
-        reason: formData.reason,
-        createdBy: user._id,
-        applicationDate: new Date().toISOString(), // Add application date
-      };
-
-      console.log("Submitting leave request:", leaveRequestData); // Debug log
-
-      const response = await createLeaveRequest(leaveRequestData);
-
-      toast({
-        title: "Leave Request Submitted",
-        description: `Your leave request for ${calculateLeaveDays()} working days has been submitted for approval.`,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        reason: formData.reason.trim(),
       });
 
-      // Reset form
-      setFormData({
-        employeeName: "",
-        pno: "",
-        designation: "",
-        dutyStation: "",
-        phone: "",
+      await queryClient.invalidateQueries({ queryKey: ["leave-records"] });
+      await queryClient.invalidateQueries({ queryKey: ["leave-balance"] });
+
+      toast.success(
+        `${selectedProfile?.name || "Leave request"} submitted successfully.`,
+      );
+
+      setFormData((current) => ({
+        ...current,
         leaveType: "",
-        applicationDate: new Date(),
-        startDate: undefined,
-        endDate: undefined,
+        startDate: "",
+        endDate: "",
         reason: "",
-      });
-    } catch (error) {
-      console.error("Error submitting leave request:", error);
-
-      let errorMessage = "Failed to submit leave request";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === "string") {
-        errorMessage = error;
-      }
-
-      toast({
-        title: "Submission Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  };
-  // Auto-fill employee data if user is logged in and has staffId
-  const handlePnoChange = (pno: string) => {
-    setFormData((prev) => ({ ...prev, pno }));
-
-    // If user has staffId and it matches the entered PNO, auto-fill their details
-    if (user?.staffId && user.staffId === pno) {
-      setFormData((prev) => ({
-        ...prev,
-        employeeName: user.username || "",
-        // You can add more auto-fill logic here based on your user data structure
       }));
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to submit the leave request.",
+      );
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <FileText className="h-6 w-6 sm:h-8 sm:w-8" />
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-            Leave Request
-          </h1>
-          <p className="text-muted-foreground">
-            Submit a new leave application
-          </p>
-        </div>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {canCreateOnBehalf ? "Create Leave Request" : "Submit Leave Request"}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {canCreateOnBehalf
+            ? "Submit a leave request for yourself or select an employee account to raise it on their behalf."
+            : "Your profile details are used automatically when you submit a leave request."}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Form */}
-        <Card className="lg:col-span-2">
+      <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Leave Application Form
+              <FileText className="h-5 w-5" />
+              Leave Application
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Employee Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Employee Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="employeeName">Full Name</Label>
-                    <Input
-                      id="employeeName"
-                      value={formData.employeeName}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          employeeName: e.target.value,
-                        })
-                      }
-                      placeholder="Enter your full name"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pno">P/No</Label>
-                    <Input
-                      id="pno"
-                      value={formData.pno}
-                      onChange={(e) => handlePnoChange(e.target.value)}
-                      placeholder="Enter your staff number"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="designation">Designation</Label>
-                    <Input
-                      id="designation"
-                      value={formData.designation}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          designation: e.target.value,
-                        })
-                      }
-                      placeholder="Enter your job title"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dutyStation">Duty Station</Label>
-                    <Input
-                      id="dutyStation"
-                      value={formData.dutyStation}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          dutyStation: e.target.value,
-                        })
-                      }
-                      placeholder="Enter your work location"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                      placeholder="Enter your phone number"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Leave Details */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Leave Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="leaveType">Leave Type</Label>
+              <div className="grid gap-4 md:grid-cols-2">
+                {canCreateOnBehalf && (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="employeeId">Request For</Label>
                     <Select
-                      value={formData.leaveType}
+                      value={formData.employeeId}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, leaveType: value })
+                        setFormData((current) => ({
+                          ...current,
+                          employeeId: value,
+                        }))
                       }
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select leave type" />
+                      <SelectTrigger id="employeeId">
+                        <SelectValue placeholder="Select request owner" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="annual">Annual Leave</SelectItem>
-                        <SelectItem value="sick">Sick Leave</SelectItem>
-                        <SelectItem value="maternity">
-                          Maternity Leave
-                        </SelectItem>
-                        <SelectItem value="paternity">
-                          Paternity Leave
-                        </SelectItem>
-                        <SelectItem value="emergency">
-                          Emergency Leave
-                        </SelectItem>
-                        <SelectItem value="study">Study Leave</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="self">My account</SelectItem>
+                        {(employeesQuery.data ?? []).map((employee) => (
+                          <SelectItem key={employee._id} value={employee._id}>
+                            {employee.employeeName} • {employee.pno}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Application Date</Label>
-                    <Input
-                      value={format(formData.applicationDate, "PPP")}
-                      disabled
-                      placeholder="Today's date"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Start Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.startDate && "text-muted-foreground"
-                          )}
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {formData.startDate
-                            ? format(formData.startDate, "PPP")
-                            : "Pick start date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.startDate}
-                          onSelect={(date) =>
-                            setFormData({ ...formData, startDate: date })
-                          }
-                          disabled={(date) => date < new Date()}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>End Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.endDate && "text-muted-foreground"
-                          )}
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {formData.endDate
-                            ? format(formData.endDate, "PPP")
-                            : "Pick end date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.endDate}
-                          onSelect={(date) =>
-                            setFormData({ ...formData, endDate: date })
-                          }
-                          disabled={(date) =>
-                            date < (formData.startDate || new Date())
-                          }
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="reason">Reason for Leave</Label>
+                  <Label htmlFor="leaveType">Leave Type</Label>
+                  <Select
+                    value={formData.leaveType}
+                    onValueChange={(value) =>
+                      setFormData((current) => ({
+                        ...current,
+                        leaveType: value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="leaveType">
+                      <SelectValue placeholder="Select leave type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leaveTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(event) =>
+                      setFormData((current) => ({
+                        ...current,
+                        startDate: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(event) =>
+                      setFormData((current) => ({
+                        ...current,
+                        endDate: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="reason">Reason</Label>
                   <Textarea
                     id="reason"
-                    placeholder="Please provide a brief reason for your leave request..."
                     value={formData.reason}
-                    onChange={(e) =>
-                      setFormData({ ...formData, reason: e.target.value })
+                    onChange={(event) =>
+                      setFormData((current) => ({
+                        ...current,
+                        reason: event.target.value,
+                      }))
                     }
-                    rows={4}
+                    placeholder="Explain the leave request clearly so HR can review it."
+                    className="min-h-32"
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit Leave Request
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4" />
+                  <span>
+                    {workingDays > 0
+                      ? `${workingDays} working day${workingDays === 1 ? "" : "s"} selected`
+                      : "Choose a valid date range. Weekends and company holidays are excluded."}
+                  </span>
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isLoading || missingProfileFields.length > 0}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Submit Request
+                    </>
+                  )}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
 
-        {/* Summary Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Leave Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Employee:</span>
-                <span className="text-sm font-medium">
-                  {formData.employeeName || "Not specified"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Leave Type:
-                </span>
-                <span className="text-sm font-medium">
-                  {formData.leaveType || "Not selected"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Start Date:
-                </span>
-                <span className="text-sm font-medium">
-                  {formData.startDate
-                    ? format(formData.startDate, "MMM dd, yyyy")
-                    : "Not selected"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">End Date:</span>
-                <span className="text-sm font-medium">
-                  {formData.endDate
-                    ? format(formData.endDate, "MMM dd, yyyy")
-                    : "Not selected"}
-                </span>
-              </div>
-              <div className="border-t pt-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Working Days:</span>
-                  <span className="text-lg font-bold text-primary">
-                    {calculateLeaveDays()}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  * Excludes weekends
-                </p>
-              </div>
-            </div>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserRound className="h-5 w-5" />
+                Request Owner
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedProfile ? (
+                <>
+                  <div className="rounded-2xl border p-4">
+                    <p className="text-sm text-muted-foreground">Employee</p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {selectedProfile.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedProfile.staffId}
+                    </p>
+                  </div>
 
-            <div className="bg-muted/50 p-3 rounded-lg">
-              <h4 className="text-sm font-medium mb-2">Important Notes:</h4>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>
-                  • Leave requests must be submitted at least 48 hours in
-                  advance
-                </li>
-                <li>• Emergency leave requires supervisor approval</li>
-                <li>
-                  • Medical certificates required for sick leave over 3 days
-                </li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Department
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {selectedProfile.department || "Not set"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Designation
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {selectedProfile.designation || "Not set"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Duty Station
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {selectedProfile.dutyStation || "Not set"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Phone
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {selectedProfile.phone || "Not set"}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Select an employee profile before submitting.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Leave Balance</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {leaveBalanceQuery.isLoading ? (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading balance...
+                </div>
+              ) : leaveBalanceQuery.isError ? (
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+                  Unable to load leave balances.
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl border p-4">
+                    <p className="text-sm text-muted-foreground">Balance Year</p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {leaveBalanceQuery.data?.year}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {leaveBalanceQuery.data?.balances.map((balance) => (
+                      <div
+                        key={balance.leaveType}
+                        className={`rounded-2xl border p-4 ${
+                          balance.leaveType === formData.leaveType
+                            ? "border-primary/40 bg-primary/5"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-medium">{balance.label}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Notice: {balance.minNoticeDays} day
+                              {balance.minNoticeDays === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="capitalize">
+                            {balance.leaveType}
+                          </Badge>
+                        </div>
+                        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+                          <div>
+                            <p className="text-muted-foreground">Allowance</p>
+                            <p className="font-medium">
+                              {balance.tracksBalance ? balance.allowance : "Policy based"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Used</p>
+                            <p className="font-medium">{balance.used}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Remaining</p>
+                            <p className="font-medium">
+                              {balance.remaining ?? "N/A"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className={missingProfileFields.length > 0 ? "border-destructive/30" : ""}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                Submission Checks
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Application date:{" "}
+                <span className="font-medium text-foreground">
+                  {format(new Date(), "PPP")}
+                </span>
+              </p>
+              <p>
+                Review ownership: HR can approve or reject once the request is
+                submitted.
+              </p>
+              {selectedBalance && (
+                <div className="rounded-2xl border p-4">
+                  <p className="font-medium">{selectedBalance.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Minimum notice: {selectedBalance.minNoticeDays} day
+                    {selectedBalance.minNoticeDays === 1 ? "" : "s"}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Remaining balance: {selectedBalance.remaining ?? "N/A"} day
+                    {selectedBalance.remaining === 1 ? "" : "s"}
+                  </p>
+                </div>
+              )}
+              {holidaysInSelectedRange.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  <p className="font-medium">Company holidays in this range</p>
+                  <p className="mt-1 text-sm">
+                    {holidaysInSelectedRange.map((holiday) => holiday.name).join(", ")}.
+                  </p>
+                  <p className="mt-1 text-xs opacity-80">
+                    These dates are excluded from the working-day count.
+                  </p>
+                </div>
+              )}
+              {missingProfileFields.length > 0 ? (
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-destructive">
+                  Complete the selected profile first. Missing:{" "}
+                  {missingProfileFields.join(", ")}.
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  The selected profile has the required details for submission.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

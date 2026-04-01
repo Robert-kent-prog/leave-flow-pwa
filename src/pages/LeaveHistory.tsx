@@ -1,21 +1,29 @@
-import { useState, useEffect } from "react";
+import { useContext, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
 import {
-  Search,
-  Filter,
+  Clock3,
   Eye,
-  Download,
-  Calendar,
-  Check,
-  X,
-  MoreVertical,
-  User,
-  Clock,
   FileText,
+  Loader2,
+  MessageSquare,
+  PencilLine,
+  Search,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -31,677 +39,875 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { ApiContext, AuthContext } from "@/contexts/AuthContextInstance";
+import { useLeaveRecords } from "@/hooks/useLeaveRecords";
+import { isHrRole } from "@/lib/roles";
+import type { ApiLeaveHistoryEntry, ApiLeaveRecord, ApiSystemUser } from "@/types/api";
 
-interface LeaveRequest {
-  _id: string;
-  employeeName: string;
-  pno: string;
+const formatDate = (value?: string) => {
+  if (!value) {
+    return "Not set";
+  }
+
+  const parsed = parseISO(value);
+  return Number.isNaN(parsed.getTime()) ? "Invalid date" : format(parsed, "PPP");
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) {
+    return "Not set";
+  }
+
+  const parsed = parseISO(value);
+  return Number.isNaN(parsed.getTime()) ? "Invalid date" : format(parsed, "PPP p");
+};
+
+const formatActor = (actor?: string | ApiSystemUser) => {
+  if (!actor) {
+    return "System";
+  }
+
+  if (typeof actor === "string") {
+    return "User";
+  }
+
+  return actor.username;
+};
+
+const formatAction = (action: ApiLeaveHistoryEntry["action"]) =>
+  action.charAt(0).toUpperCase() + action.slice(1);
+
+const toInputDate = (value?: string) => {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = parseISO(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().split("T")[0];
+};
+
+const getStatusBadge = (status: ApiLeaveRecord["status"]) => {
+  switch (status) {
+    case "approved":
+      return <Badge className="bg-emerald-100 text-emerald-700">Approved</Badge>;
+    case "pending":
+      return <Badge variant="secondary">Pending</Badge>;
+    case "rejected":
+      return <Badge variant="destructive">Rejected</Badge>;
+    case "cancelled":
+      return <Badge variant="outline">Cancelled</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+};
+
+type EditableRequestState = {
   leaveType: string;
   startDate: string;
   endDate: string;
-  days: number;
-  status: "pending" | "approved" | "rejected" | "cancelled";
   reason: string;
-  applicationDate: string;
-  reviewedBy?: string;
-  reviewedAt?: string;
-  comments?: string;
-  designation?: string;
-  dutyStation?: string;
-  phone?: string;
-}
+};
 
-interface ActionModalState {
-  isOpen: boolean;
-  leaveRequest: LeaveRequest | null;
-  action: "approve" | "reject" | "update" | "view" | null;
-}
+const emptyEditState: EditableRequestState = {
+  leaveType: "",
+  startDate: "",
+  endDate: "",
+  reason: "",
+};
 
 export default function LeaveHistory() {
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const authContext = useContext(AuthContext);
+  const apiContext = useContext(ApiContext);
+  const queryClient = useQueryClient();
+
+  if (!authContext || !apiContext) {
+    throw new Error("LeaveHistory must be used within the auth and API providers");
+  }
+
+  const { user } = authContext;
+  const { updateLeaveRequest, cancelLeaveRequest } = apiContext;
+  const isHrView = isHrRole(user?.role);
+  const leaveRecordsQuery = useLeaveRecords(undefined, {
+    scope: isHrView ? "all" : "mine",
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [comment, setComment] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [modal, setModal] = useState<ActionModalState>({
-    isOpen: false,
-    leaveRequest: null,
-    action: null,
-  });
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<ApiLeaveRecord | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<"approved" | "rejected">(
+    "approved",
+  );
+  const [reviewComment, setReviewComment] = useState("");
+  const [isEditingRequest, setIsEditingRequest] = useState(false);
+  const [editRequestForm, setEditRequestForm] =
+    useState<EditableRequestState>(emptyEditState);
 
-  const { toast } = useToast();
-  const { user } = useAuth();
+  const leaveRequests = useMemo(
+    () => leaveRecordsQuery.data ?? [],
+    [leaveRecordsQuery.data],
+  );
 
-  useEffect(() => {
-    fetchLeaveRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const leaveTypes = useMemo(
+    () => Array.from(new Set(leaveRequests.map((request) => request.leaveType))).sort(),
+    [leaveRequests],
+  );
 
-  const API_BASE_URL = "http://10.8.29.245:9000/api";
+  const filteredRequests = useMemo(
+    () =>
+      leaveRequests.filter((request) => {
+        const normalizedSearch = searchTerm.trim().toLowerCase();
+        const matchesSearch =
+          normalizedSearch.length === 0 ||
+          request.employeeName.toLowerCase().includes(normalizedSearch) ||
+          request.pno.toLowerCase().includes(normalizedSearch) ||
+          request.leaveType.toLowerCase().includes(normalizedSearch) ||
+          request.reason.toLowerCase().includes(normalizedSearch);
 
-  const fetchLeaveRequests = async () => {
-    try {
-      setLoading(true);
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
+        const matchesStatus =
+          statusFilter === "all" || request.status === statusFilter;
+        const matchesType =
+          typeFilter === "all" || request.leaveType === typeFilter;
 
-      const response = await fetch(`${API_BASE_URL}/leaves/`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
+        const requestStart = parseISO(request.startDate);
+        const requestEnd = parseISO(request.endDate);
+        const fromDate = dateFrom ? new Date(dateFrom) : null;
+        const toDateValue = dateTo ? new Date(dateTo) : null;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        const matchesDateFrom =
+          !fromDate ||
+          !Number.isNaN(requestEnd.getTime()) && requestEnd >= fromDate;
+        const matchesDateTo =
+          !toDateValue ||
+          !Number.isNaN(requestStart.getTime()) && requestStart <= toDateValue;
 
-      const data = await response.json();
-      setLeaveRequests(data);
-    } catch (error) {
-      console.error("Error fetching Leave Requests:", error);
-      toast({
-        title: "Connection Error",
-        description: "Failed to fetch leave requests",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openModal = (
-    request: LeaveRequest,
-    action: ActionModalState["action"]
-  ) => {
-    setModal({ isOpen: true, leaveRequest: request, action });
-    setSelectedStatus(request.status);
-    setComment(request.comments || "");
-  };
-
-  const closeModal = () => {
-    setModal({ isOpen: false, leaveRequest: null, action: null });
-    setComment("");
-    setSelectedStatus("");
-  };
-
-  const handleStatusUpdate = async () => {
-    if (!modal.leaveRequest || !user) {
-      toast({
-        title: "Error",
-        description: "User information not available. Please login again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      interface UpdateData {
-        status: string; // Adjust the type based on what `selectedStatus` is
-        reviewedBy: string; // Assuming `user._id` is a string
-        comments?: string; // Optional property
-      }
-
-      const updateData: UpdateData = {
-        status: selectedStatus,
-        reviewedBy: user._id,
-      };
-
-      // Only add reviewedBy if user exists and has _id
-      if (user && user._id) {
-        updateData.reviewedBy = user._id;
-      }
-
-      if (comment.trim()) {
-        updateData.comments = comment;
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/leaves/${modal.leaveRequest._id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        return (
+          matchesSearch &&
+          matchesStatus &&
+          matchesType &&
+          matchesDateFrom &&
+          matchesDateTo
         );
-      }
+      }),
+    [dateFrom, dateTo, leaveRequests, searchTerm, statusFilter, typeFilter],
+  );
 
-      const actionText =
-        selectedStatus === "approved"
-          ? "approved"
-          : selectedStatus === "rejected"
-          ? "rejected"
-          : "updated";
+  const selectedRequestCanReview =
+    Boolean(selectedRequest) && isHrView && selectedRequest?.status === "pending";
+  const selectedRequestCanEdit =
+    Boolean(selectedRequest) && !isHrView && selectedRequest?.status === "pending";
+  const selectedRequestCanCancel =
+    Boolean(selectedRequest) &&
+    !isHrView &&
+    (selectedRequest?.status === "pending" || selectedRequest?.status === "approved");
 
-      toast({
-        title: `Leave ${
-          actionText.charAt(0).toUpperCase() + actionText.slice(1)
-        }`,
-        description: `Leave request has been ${actionText} successfully`,
-      });
-
-      closeModal();
-      fetchLeaveRequests();
-    } catch (error) {
-      console.error("Status update error:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update leave request",
-        variant: "destructive",
-      });
-    }
+  const openDetails = (request: ApiLeaveRecord, startEdit = false) => {
+    setSelectedRequest(request);
+    setReviewStatus("approved");
+    setReviewComment(request.comments || "");
+    setEditRequestForm({
+      leaveType: request.leaveType,
+      startDate: toInputDate(request.startDate),
+      endDate: toInputDate(request.endDate),
+      reason: request.reason,
+    });
+    setIsEditingRequest(startEdit);
   };
 
-  const handleQuickApprove = async (id: string) => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "User information not available",
-        variant: "destructive",
-      });
+  const closeDetails = () => {
+    setSelectedRequest(null);
+    setReviewStatus("approved");
+    setReviewComment("");
+    setIsEditingRequest(false);
+    setEditRequestForm(emptyEditState);
+  };
+
+  const refreshData = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["leave-records"] }),
+      queryClient.invalidateQueries({ queryKey: ["leave-balance"] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    ]);
+  };
+
+  const handleReview = async () => {
+    if (!selectedRequest) {
       return;
     }
+
+    setActiveRequestId(selectedRequest._id);
+
     try {
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      const response = await fetch(`${API_BASE_URL}/leaves/${id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "approved",
-          reviewedBy: user._id,
-        }),
+      await updateLeaveRequest(selectedRequest._id, {
+        status: reviewStatus,
+        comments: reviewComment.trim() || undefined,
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      toast({
-        title: "Leave Approved",
-        description: "Leave request has been approved",
-      });
-      fetchLeaveRequests();
+      await refreshData();
+      toast.success(`Leave request ${reviewStatus}.`);
+      closeDetails();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to approve leave request",
-        variant: "destructive",
-      });
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Unable to mark leave as ${reviewStatus}.`,
+      );
+    } finally {
+      setActiveRequestId(null);
     }
   };
 
-  const handleQuickReject = async (id: string) => {
+  const handleSaveEdit = async () => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    if (
+      !editRequestForm.leaveType ||
+      !editRequestForm.startDate ||
+      !editRequestForm.endDate ||
+      !editRequestForm.reason.trim()
+    ) {
+      toast.error("Complete the leave type, date range, and reason.");
+      return;
+    }
+
+    if (new Date(editRequestForm.startDate) > new Date(editRequestForm.endDate)) {
+      toast.error("End date must be on or after the start date.");
+      return;
+    }
+
+    setActiveRequestId(selectedRequest._id);
+
     try {
-      const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
-
-      const response = await fetch(`${API_BASE_URL}/leaves/${id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "rejected",
-          reviewedBy: user._id,
-        }),
+      await updateLeaveRequest(selectedRequest._id, {
+        leaveType: editRequestForm.leaveType,
+        startDate: editRequestForm.startDate,
+        endDate: editRequestForm.endDate,
+        reason: editRequestForm.reason.trim(),
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      toast({
-        title: "Leave Rejected",
-        description: "Leave request has been rejected",
-      });
-      fetchLeaveRequests();
+      await refreshData();
+      toast.success("Pending leave request updated.");
+      closeDetails();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reject leave request",
-        variant: "destructive",
-      });
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update request.",
+      );
+    } finally {
+      setActiveRequestId(null);
     }
   };
 
-  const filteredRequests = leaveRequests.filter((request) => {
-    const matchesSearch =
-      request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.pno.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleCancel = async (leaveRequestId: string) => {
+    setActiveRequestId(leaveRequestId);
 
-    const matchesStatus =
-      statusFilter === "all" || request.status === statusFilter;
-
-    const matchesType =
-      typeFilter === "all" || request.leaveType === typeFilter;
-
-    return matchesSearch && matchesStatus && matchesType;
-  });
-
-  const getStatusBadge = (status: LeaveRequest["status"]) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
-      case "pending":
-        return <Badge variant="secondary">Pending</Badge>;
-      case "rejected":
-        return <Badge variant="destructive">Rejected</Badge>;
-      case "cancelled":
-        return <Badge variant="outline">Cancelled</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+    try {
+      await cancelLeaveRequest(leaveRequestId);
+      await refreshData();
+      toast.success("Leave request cancelled.");
+      if (selectedRequest?._id === leaveRequestId) {
+        closeDetails();
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to cancel request.",
+      );
+    } finally {
+      setActiveRequestId(null);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading leave requests...</p>
-        </div>
-      </div>
-    );
-  }
+  const headerTitle = isHrView ? "Leave Requests" : "My Leave History";
+  const headerDescription = isHrView
+    ? "Review, approve, reject, and track all submitted leave requests."
+    : "Track your requests, edit pending submissions, and review the full status timeline.";
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Leave Management
-          </h1>
-          <p className="text-muted-foreground">
-            Review and manage all leave requests
-          </p>
-        </div>
-        <Button
-          onClick={fetchLeaveRequests}
-          variant="outline"
-          className="shrink-0"
-        >
-          Refresh
-        </Button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight">{headerTitle}</h1>
+        <p className="text-sm text-muted-foreground">{headerDescription}</p>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Filter className="h-5 w-5" />
-            Search & Filter
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Filters
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="space-y-2 xl:col-span-2">
+              <label className="text-sm font-medium">Search</label>
               <Input
-                placeholder="Search by employee or P/No..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={
+                  isHrView
+                    ? "Search employee, P/No, type, or reason"
+                    : "Search type or reason"
+                }
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="annual">Annual Leave</SelectItem>
-                <SelectItem value="sick">Sick Leave</SelectItem>
-                <SelectItem value="maternity">Maternity Leave</SelectItem>
-                <SelectItem value="paternity">Paternity Leave</SelectItem>
-                <SelectItem value="emergency">Emergency Leave</SelectItem>
-                <SelectItem value="compassionate">Compassionate</SelectItem>
-                <SelectItem value="study">Study Leave</SelectItem>
-              </SelectContent>
-            </Select>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Leave Type</label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All leave types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All leave types</SelectItem>
+                  {leaveTypes.map((leaveType) => (
+                    <SelectItem key={leaveType} value={leaveType}>
+                      {leaveType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">From Date</label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2 xl:col-start-5">
+              <label className="text-sm font-medium">To Date</label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Leave Requests Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Leave Requests ({filteredRequests.length})</CardTitle>
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            <Download className="h-4 w-4 mr-2" />
-            Export
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Request Log
+            </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {filteredRequests.length} request
+              {filteredRequests.length === 1 ? "" : "s"} shown.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => leaveRecordsQuery.refetch()}
+            disabled={leaveRecordsQuery.isFetching}
+          >
+            {leaveRecordsQuery.isFetching ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Refreshing
+              </>
+            ) : (
+              "Refresh"
+            )}
           </Button>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="hidden sm:table-cell">
-                    Employee
-                  </TableHead>
-                  <TableHead className="hidden md:table-cell">P/No</TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    Leave Type
-                  </TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead className="hidden sm:table-cell">Days</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    Applied
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRequests.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <FileText className="h-12 w-12 mb-4 opacity-50" />
-                        <p>No leave requests found</p>
-                        <p className="text-sm mt-2">
-                          {searchTerm ||
-                          statusFilter !== "all" ||
-                          typeFilter !== "all"
-                            ? "Try adjusting your filters"
-                            : "No leave requests submitted yet"}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredRequests.map((request) => (
-                    <TableRow key={request._id} className="group">
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-3">
-                          <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                            <User className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <div className="font-medium">
-                              {request.employeeName}
-                            </div>
-                            <div className="text-sm text-muted-foreground sm:hidden">
-                              {request.pno} • {request.leaveType}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {request.pno}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell capitalize">
-                        {request.leaveType.replace(/_/g, " ")}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">
-                            {formatDate(request.startDate)} -{" "}
-                            {formatDate(request.endDate)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        {request.days}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        {formatDate(request.applicationDate)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {/* Quick actions for pending requests */}
-                          {request.status === "pending" && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickApprove(request._id)}
-                                className="h-8 px-2 hidden sm:flex"
-                                title="Approve"
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleQuickReject(request._id)}
-                                className="h-8 px-2 hidden sm:flex"
-                                title="Reject"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
 
-                          {/* More actions dropdown */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+        <CardContent>
+          {leaveRecordsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading leave requests...
+            </div>
+          ) : leaveRecordsQuery.isError ? (
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive">
+              Unable to load leave requests from the backend.
+            </div>
+          ) : filteredRequests.length === 0 ? (
+            <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No leave requests match the current filters.
+            </div>
+          ) : (
+            <>
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Leave Window</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead>Comments</TableHead>
+                      <TableHead className="w-[260px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRequests.map((request) => {
+                      const isBusy = activeRequestId === request._id;
+                      const canEdit = !isHrView && request.status === "pending";
+                      const canCancel =
+                        !isHrView &&
+                        (request.status === "pending" ||
+                          request.status === "approved");
+
+                      return (
+                        <TableRow key={request._id}>
+                          <TableCell>
+                            <div className="font-medium">{request.employeeName}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {request.pno}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>{formatDate(request.startDate)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              to {formatDate(request.endDate)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="capitalize">
+                            {request.leaveType}
+                          </TableCell>
+                          <TableCell>{request.days}</TableCell>
+                          <TableCell>{getStatusBadge(request.status)}</TableCell>
+                          <TableCell>
+                            {formatDate(request.applicationDate || request.createdAt)}
+                          </TableCell>
+                          <TableCell className="max-w-[220px] truncate">
+                            {request.comments || "No review comments"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8 px-2"
+                                onClick={() => openDetails(request)}
                               >
-                                <MoreVertical className="h-4 w-4" />
+                                <Eye className="mr-2 h-4 w-4" />
+                                Details
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => openModal(request, "view")}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => openModal(request, "update")}
-                              >
-                                <Clock className="h-4 w-4 mr-2" />
-                                Update Status
-                              </DropdownMenuItem>
-                              {request.status === "pending" && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      handleQuickApprove(request._id)
-                                    }
-                                  >
-                                    <Check className="h-4 w-4 mr-2" />
-                                    Quick Approve
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      handleQuickReject(request._id)
-                                    }
-                                  >
-                                    <X className="h-4 w-4 mr-2" />
-                                    Quick Reject
-                                  </DropdownMenuItem>
-                                </>
+                              {canEdit && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openDetails(request, true)}
+                                >
+                                  <PencilLine className="mr-2 h-4 w-4" />
+                                  Edit
+                                </Button>
                               )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              {canCancel && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancel(request._id)}
+                                  disabled={isBusy}
+                                >
+                                  {isBusy ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    "Cancel"
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="grid gap-4 lg:hidden">
+                {filteredRequests.map((request) => {
+                  const isBusy = activeRequestId === request._id;
+                  const canEdit = !isHrView && request.status === "pending";
+                  const canCancel =
+                    !isHrView &&
+                    (request.status === "pending" || request.status === "approved");
+
+                  return (
+                    <Card key={request._id} className="border border-border/70 shadow-none">
+                      <CardContent className="space-y-4 p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold">{request.employeeName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {request.pno}
+                            </p>
+                          </div>
+                          {getStatusBadge(request.status)}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+
+                        <div className="grid gap-3 text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Clock3 className="h-4 w-4" />
+                            <span>
+                              {formatDate(request.startDate)} to{" "}
+                              {formatDate(request.endDate)}
+                            </span>
+                          </div>
+                          <div className="capitalize text-muted-foreground">
+                            {request.leaveType} • {request.days} working days
+                          </div>
+                          <p>{request.reason}</p>
+                          {request.comments && (
+                            <div className="rounded-2xl border p-3 text-sm">
+                              <p className="font-medium">Review comments</p>
+                              <p className="mt-1 text-muted-foreground">
+                                {request.comments}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => openDetails(request)}
+                          >
+                            View Details
+                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="outline"
+                              onClick={() => openDetails(request, true)}
+                            >
+                              Edit Request
+                            </Button>
+                          )}
+                          {canCancel ? (
+                            <Button
+                              variant="outline"
+                              onClick={() => handleCancel(request._id)}
+                              disabled={isBusy}
+                            >
+                              Cancel
+                            </Button>
+                          ) : (
+                            <div />
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Action Modal */}
-      {modal.isOpen && modal.leaveRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">
-                {modal.action === "view" && "Leave Request Details"}
-                {modal.action === "update" && "Update Leave Status"}
-                {modal.action === "approve" && "Approve Leave Request"}
-                {modal.action === "reject" && "Reject Leave Request"}
-              </h3>
+      <Dialog open={Boolean(selectedRequest)} onOpenChange={(open) => !open && closeDetails()}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {isEditingRequest ? "Edit Pending Leave Request" : "Leave Request Details"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditingRequest
+                ? "Update the pending request before HR reviews it."
+                : "Review request details, comments, and the request history trail."}
+            </DialogDescription>
+          </DialogHeader>
 
-              {/* Leave Details */}
-              <div className="space-y-4 mb-6">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Employee:</span>
-                    <p>{modal.leaveRequest.employeeName}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">P/No:</span>
-                    <p>{modal.leaveRequest.pno}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Leave Type:</span>
-                    <p className="capitalize">{modal.leaveRequest.leaveType}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Days:</span>
-                    <p>{modal.leaveRequest.days}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-medium">Period:</span>
-                    <p>
-                      {formatDate(modal.leaveRequest.startDate)} -{" "}
-                      {formatDate(modal.leaveRequest.endDate)}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-medium">Reason:</span>
-                    <p className="mt-1 p-2 bg-gray-50 rounded text-sm">
-                      {modal.leaveRequest.reason}
-                    </p>
-                  </div>
+          {selectedRequest && (
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm text-muted-foreground">Employee</p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {selectedRequest.employeeName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedRequest.pno}
+                  </p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <div className="mt-2">{getStatusBadge(selectedRequest.status)}</div>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm text-muted-foreground">Leave Window</p>
+                  <p className="mt-1 font-medium">
+                    {formatDate(selectedRequest.startDate)} to{" "}
+                    {formatDate(selectedRequest.endDate)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedRequest.days} working days
+                  </p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm text-muted-foreground">Submitted</p>
+                  <p className="mt-1 font-medium">
+                    {formatDateTime(
+                      selectedRequest.applicationDate || selectedRequest.createdAt,
+                    )}
+                  </p>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {selectedRequest.leaveType}
+                  </p>
                 </div>
               </div>
 
-              {/* Status Update Section */}
-              {(modal.action === "update" ||
-                modal.action === "approve" ||
-                modal.action === "reject") && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Status
-                    </label>
+              {isEditingRequest && selectedRequestCanEdit ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-leave-type">Leave Type</Label>
                     <Select
-                      value={selectedStatus}
-                      onValueChange={setSelectedStatus}
+                      value={editRequestForm.leaveType}
+                      onValueChange={(value) =>
+                        setEditRequestForm((current) => ({
+                          ...current,
+                          leaveType: value,
+                        }))
+                      }
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
+                      <SelectTrigger id="edit-leave-type">
+                        <SelectValue placeholder="Select leave type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        {leaveTypes.map((leaveType) => (
+                          <SelectItem key={leaveType} value={leaveType}>
+                            {leaveType}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Comments {modal.action !== "update" && "(Optional)"}
-                    </label>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-start-date">Start Date</Label>
+                    <Input
+                      id="edit-start-date"
+                      type="date"
+                      value={editRequestForm.startDate}
+                      onChange={(event) =>
+                        setEditRequestForm((current) => ({
+                          ...current,
+                          startDate: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-end-date">End Date</Label>
+                    <Input
+                      id="edit-end-date"
+                      type="date"
+                      value={editRequestForm.endDate}
+                      onChange={(event) =>
+                        setEditRequestForm((current) => ({
+                          ...current,
+                          endDate: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="edit-reason">Reason</Label>
                     <Textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Enter comments for this action..."
-                      rows={4}
+                      id="edit-reason"
+                      value={editRequestForm.reason}
+                      onChange={(event) =>
+                        setEditRequestForm((current) => ({
+                          ...current,
+                          reason: event.target.value,
+                        }))
+                      }
+                      className="min-h-28"
                     />
                   </div>
                 </div>
-              )}
-
-              {/* View Only Section */}
-              {modal.action === "view" && modal.leaveRequest.comments && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Review Comments
-                  </label>
-                  <div className="p-3 bg-gray-50 rounded text-sm">
-                    {modal.leaveRequest.comments}
-                  </div>
+              ) : (
+                <div className="rounded-2xl border p-4">
+                  <p className="font-medium">Reason</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {selectedRequest.reason}
+                  </p>
                 </div>
               )}
 
-              {/* Modal Actions */}
-              <div className="flex gap-2 justify-end mt-6">
-                <Button variant="outline" onClick={closeModal}>
-                  Cancel
-                </Button>
-                {(modal.action === "update" ||
-                  modal.action === "approve" ||
-                  modal.action === "reject") && (
-                  <Button onClick={handleStatusUpdate}>
-                    {modal.action === "approve"
-                      ? "Approve"
-                      : modal.action === "reject"
-                      ? "Reject"
-                      : "Update"}
-                  </Button>
+              <div className="rounded-2xl border p-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <p className="font-medium">Review Comments</p>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {selectedRequest.comments || "No review comments yet."}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="font-medium">Request History</p>
+                {(selectedRequest.history ?? []).length === 0 ? (
+                  <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                    No history entries recorded.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(selectedRequest.history ?? []).map((entry, index) => (
+                      <div key={`${entry.timestamp}-${index}`} className="rounded-2xl border p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{formatAction(entry.action)}</Badge>
+                            {getStatusBadge(entry.status)}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDateTime(entry.timestamp)}
+                          </p>
+                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          By {formatActor(entry.actor)}
+                        </p>
+                        {entry.comment && (
+                          <p className="mt-2 text-sm">{entry.comment}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+
+              {selectedRequestCanReview && (
+                <div className="space-y-4 rounded-2xl border p-4">
+                  <p className="font-medium">HR Review</p>
+                  <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Decision</label>
+                      <Select
+                        value={reviewStatus}
+                        onValueChange={(value) =>
+                          setReviewStatus(value as "approved" | "rejected")
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select decision" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="approved">Approve</SelectItem>
+                          <SelectItem value="rejected">Reject</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Comments</label>
+                      <Textarea
+                        value={reviewComment}
+                        onChange={(event) => setReviewComment(event.target.value)}
+                        placeholder="Add review notes. Rejection requires a comment."
+                        className="min-h-28"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          )}
+
+          <DialogFooter>
+            {selectedRequestCanCancel && selectedRequest ? (
+              <Button
+                variant="outline"
+                onClick={() => handleCancel(selectedRequest._id)}
+                disabled={activeRequestId === selectedRequest._id}
+              >
+                {activeRequestId === selectedRequest._id ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cancelling
+                  </>
+                ) : (
+                  "Cancel Request"
+                )}
+              </Button>
+            ) : null}
+
+            {selectedRequestCanEdit && selectedRequest && !isEditingRequest ? (
+              <Button variant="outline" onClick={() => setIsEditingRequest(true)}>
+                Edit Pending Request
+              </Button>
+            ) : null}
+
+            {selectedRequestCanEdit && selectedRequest && isEditingRequest ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditingRequest(false)}
+                  disabled={activeRequestId === selectedRequest._id}
+                >
+                  Back to Details
+                </Button>
+                <Button
+                  onClick={handleSaveEdit}
+                  disabled={activeRequestId === selectedRequest._id}
+                >
+                  {activeRequestId === selectedRequest._id ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </>
+            ) : null}
+
+            {selectedRequestCanReview ? (
+              <Button
+                onClick={handleReview}
+                disabled={activeRequestId === selectedRequest?._id}
+              >
+                {activeRequestId === selectedRequest?._id ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving
+                  </>
+                ) : reviewStatus === "approved" ? (
+                  "Approve Request"
+                ) : (
+                  "Reject Request"
+                )}
+              </Button>
+            ) : null}
+
+            {!selectedRequestCanReview && !selectedRequestCanEdit ? (
+              <Button variant="outline" onClick={closeDetails}>
+                Close
+              </Button>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

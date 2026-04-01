@@ -1,16 +1,17 @@
 import {
   Bell,
-  Search,
-  User,
-  Settings,
   LogOut,
-  Moon,
-  Sun,
   Menu,
+  Moon,
+  Settings,
+  Sun,
+  User,
   X,
 } from "lucide-react";
+import { format } from "date-fns";
+import { Link } from "react-router-dom";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,197 +20,126 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { useState, useEffect } from "react";
+import { useNotificationsData } from "@/hooks/useNotificationsData";
+
+const formatRoleLabel = (role?: string) =>
+  role ? role.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "";
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [isMobileSearchVisible, setIsMobileSearchVisible] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  const unreadCount = 5;
-
-  // Get sidebar state
   const { state } = useSidebar();
+  const { notifications } = useNotificationsData();
+  const todayLabel = format(new Date(), "EEEE, d MMM yyyy");
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
+  const unreadCount = notifications.filter((notification) => !notification.isRead)
+    .length;
 
   return (
-    <header
-      className={`sticky top-0 z-50 border-b bg-card shadow-sm transition-all duration-300 ${
-        isScrolled ? "shadow-md" : "shadow-sm"
-      }`}
-    >
-      <div className="flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 md:py-4">
-        {/* Left side: Sidebar toggle + Logo */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-          {/* Mobile sidebar toggle */}
-          <SidebarTrigger className="md:hidden h-8 w-8 sm:h-9 sm:w-9 p-0 flex-shrink-0">
-            <Button variant="ghost" size="icon" className="h-full w-full p-0">
-              {state === "expanded" ? (
-                <X className="h-4 w-4 sm:h-5 sm:w-5" />
-              ) : (
-                <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
-              )}
-            </Button>
+    <header className="sticky top-0 z-30 shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <SidebarTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-xl border md:hidden">
+            {state === "expanded" ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <Menu className="h-4 w-4" />
+            )}
           </SidebarTrigger>
 
-          {/* Logo - Now wraps on smaller screens */}
-          <h1 className="text-lg font-semibold text-foreground sm:text-xl md:text-2xl whitespace-normal break-words min-w-0 max-w-full">
-            Employee Leave Management
-          </h1>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">LeaveFlow</p>
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              {todayLabel}
+            </p>
+          </div>
         </div>
 
-        {/* Right side: All actions — SEARCH, THEME, NOTIFICATIONS, USER */}
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0 ml-2">
-          {/* Mobile search button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMobileSearchVisible(!isMobileSearchVisible)}
-            className="md:hidden h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0"
-            aria-label="Search"
-          >
-            <Search className="h-4 w-4" />
-          </Button>
-          {/* Search bar - hidden on mobile */}
-          <div className="relative hidden md:block flex-shrink-0">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search employees, requests..."
-              className="pl-10 w-40 lg:w-56 xl:w-64"
-            />
-          </div>
-          {/* Theme Toggle Button */}
+        <div className="flex items-center gap-2">
+          {user?.role && (
+            <span className="hidden rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground md:inline-flex">
+              {formatRoleLabel(user.role)}
+            </span>
+          )}
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0"
+            className="h-9 w-9 rounded-xl"
+            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
           >
             {theme === "light" ? (
-              <Moon className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
+              <Moon className="h-4 w-4" />
             ) : (
-              <Sun className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
+              <Sun className="h-4 w-4" />
             )}
           </Button>
-          {/* Notification Button */}
+
           <Button
             variant="ghost"
             size="icon"
-            className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0"
             asChild
+            className="relative h-9 w-9 rounded-xl"
           >
-            <Link to="/notifications">
-              <Bell className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
+            <Link to="/notifications" aria-label="Open notifications">
+              <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-destructive text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center sm:h-5 sm:w-5 sm:text-xs">
+                <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
                   {unreadCount > 9 ? "9+" : unreadCount}
-                  <span className="sr-only">
-                    {unreadCount} unread notifications
-                  </span>
                 </span>
               )}
             </Link>
           </Button>
-          {/* USER DROPDOWN */}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-full p-0 flex-shrink-0"
+                className="relative h-9 w-9 rounded-full p-0"
               >
-                <Avatar className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
+                <Avatar className="h-9 w-9 border">
+                  <AvatarFallback className="bg-primary/10 text-primary">
                     {user?.username?.charAt(0)?.toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuContent className="w-60" align="end">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
                     {user?.username || "User"}
                   </p>
-                  <p className="text-xs leading-none text-muted-foreground truncate">
-                    {user?.email || "No email"}
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email || "No email available"}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link
-                  to="/profile"
-                  className="flex items-center w-full cursor-pointer"
-                >
+                <Link to="/profile" className="flex w-full items-center">
                   <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+                  Profile
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link
-                  to="/settings"
-                  className="flex items-center w-full cursor-pointer"
-                >
+                <Link to="/settings" className="flex w-full items-center">
                   <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
+                  Settings
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="cursor-pointer"
-              >
+              <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log Out</span>
+                Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
-
-      {/* Mobile search overlay — unchanged */}
-      {isMobileSearchVisible && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden animate-in fade-in">
-          <div className="flex items-center justify-center p-4 mt-20">
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search employees, requests..."
-                className="pl-10 w-full"
-                autoFocus
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsMobileSearchVisible(false)}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

@@ -8,8 +8,7 @@ import {
   UpdateLeaveRequestData,
   DeleteResponse,
 } from "./AuthContextInstance";
-
-const API_BASE_URL = "http://10.8.29.245:9000/api";
+import { apiFetch, clearStoredAuth } from "@/lib/api";
 
 export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -19,39 +18,20 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
   // ✅ Generic, type-safe API helper
   const apiRequest = async <T = unknown,>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> => {
-    const token = localStorage.getItem("token");
-
-    const config: RequestInit = {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      return await apiFetch<T>(endpoint, options);
+    } catch (error) {
+      const status =
+        error instanceof Error && "status" in error
+          ? Number(error.status)
+          : undefined;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-
-        if (response.status === 401) {
-          console.warn("🔒 Token expired or invalid");
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/login";
-        }
-
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
+      if (status === 401 || status === 403) {
+        clearStoredAuth();
       }
 
-      return await response.json();
-    } catch (error) {
       console.error("API request failed:", error);
       throw error;
     }
@@ -60,13 +40,19 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
   // Helper to serialize LeaveRequestData (convert Date → string)
   const serializeLeaveData = (data: LeaveRequestData) => ({
     ...data,
-    startDate: data.startDate.toString().split("T")[0], // "2024-06-01"
-    endDate: data.endDate.toString().split("T")[0],
+    startDate:
+      data.startDate instanceof Date
+        ? data.startDate.toISOString().split("T")[0]
+        : String(data.startDate).split("T")[0],
+    endDate:
+      data.endDate instanceof Date
+        ? data.endDate.toISOString().split("T")[0]
+        : String(data.endDate).split("T")[0],
   });
 
   // Create new leave request
   const createLeaveRequest = async (
-    leaveData: LeaveRequestData
+    leaveData: LeaveRequestData,
   ): Promise<LeaveRequestResponse> => {
     setIsLoading(true);
     try {
@@ -89,12 +75,12 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Get leave requests by PNO
   const getLeaveRequestsByPno = async (
-    pno: string
+    pno: string,
   ): Promise<LeaveRequestsListResponse> => {
     setIsLoading(true);
     try {
       const response = await apiRequest<LeaveRequestsListResponse>(
-        `/leaves/employee/${pno}`
+        `/leaves/employee/${pno}`,
       );
       return response;
     } catch (error) {
@@ -111,7 +97,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Get leave request by ID
   const getLeaveRequestById = async (
-    id: string
+    id: string,
   ): Promise<LeaveRequestResponse> => {
     setIsLoading(true);
     try {
@@ -132,7 +118,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
   // Update leave request
   const updateLeaveRequest = async (
     id: string,
-    updateData: UpdateLeaveRequestData
+    updateData: UpdateLeaveRequestData,
   ): Promise<LeaveRequestResponse> => {
     setIsLoading(true);
     try {
@@ -188,7 +174,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Cancel leave request
   const cancelLeaveRequest = async (
-    id: string
+    id: string,
   ): Promise<LeaveRequestResponse> => {
     setIsLoading(true);
     try {
@@ -196,7 +182,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({
         `/leaves/${id}/cancel`,
         {
           method: "PATCH",
-        }
+        },
       );
       return response;
     } catch (error) {

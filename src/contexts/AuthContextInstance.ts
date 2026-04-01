@@ -1,15 +1,10 @@
 // contexts/AuthContextInstance.ts
 import { createContext } from "react";
+import { ApiSystemUser } from "@/types/api";
 
-export interface User {
-  _id: string;
-  id: string;
-  username: string;
-  email: string;
-  phone: string;
-  role: "admin" | "hr";
+export interface User extends ApiSystemUser {
+  id?: string;
   avatar?: string;
-  staffId?: string;
 }
 
 export interface AuthContextType {
@@ -28,20 +23,24 @@ export interface AuthContextType {
 // ✅ Updated to match actual form data
 export interface SignupData {
   username: string;
-  staffId: string;        // ← added
+  staffId: string;
   email: string;
   password: string;
-  confirmPassword: string; // only for frontend validation
+  confirmPassword: string;
   phone: string;
-  role: "admin" | "hr"; // ← added
+  department: string;
+  designation: string;
+  dutyStation: string;
 }
 
 export interface UpdateProfileData {
-  name?: string;
+  username?: string;
   email?: string;
   avatarUrl?: string;
   phone?: string;
-  staffId?: string; // ← added
+  department?: string;
+  designation?: string;
+  dutyStation?: string;
 }
 
 export interface ChangePasswordData {
@@ -52,16 +51,11 @@ export interface ChangePasswordData {
 
 // Already defined by you
 export interface LeaveRequestData {
-  employeeName: string;
-  pno: string;
-  designation: string;
-  dutyStation: string;
-  phone: string;
+  employeeId?: string;
   leaveType: string;
-    startDate?: Date | string;
-    endDate?: Date | string;
+  startDate?: Date | string;
+  endDate?: Date | string;
   reason: string;
-  createdBy: string;
 }
 
 export interface LeaveRequestResponse {
@@ -77,16 +71,19 @@ export interface LeaveRequestResponse {
     endDate?: Date | string;
     reason: string;
     days: number;
-    status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+    status: "pending" | "approved" | "rejected" | "cancelled";
     createdBy: string;
+    requestedFor?: string;
     createdAt: string;
     updatedAt: string;
   };
   message: string;
 }
 
-// NEW: Add these
-export type UpdateLeaveRequestData = Partial<Omit<LeaveRequestData, 'createdBy'>>;
+export type UpdateLeaveRequestData = Partial<Omit<LeaveRequestData, "employeeId">> & {
+  comments?: string;
+  status?: "pending" | "approved" | "rejected" | "cancelled";
+};
 
 export interface LeaveRequestsListResponse {
   leaveRequests: LeaveRequestResponse['leaveRequest'][];
